@@ -218,8 +218,29 @@
     "Get started": "开始使用",
     "Welcome to Antigravity": "欢迎使用 Antigravity",
     "What's new": "新增功能",
-    "Release notes": "发行说明"
-    ,"Customizations": "自定义",
+    "Release notes": "发行说明",
+    "Analyzed": "已分析",
+    "Checked task": "已检查任务",
+    "Checking for Updates...": "正在检查更新...",
+    "Connect to WSL": "连接到 WSL",
+    "Conversation Log": "对话日志",
+    "Docs": "文档",
+    "Download the Antigravity IDE": "下载 Antigravity IDE",
+    "Downloading Update...": "正在下载更新...",
+    "Drag to select a region to comment": "拖动以选择要评论的区域",
+    "Explore the new Antigravity": "探索全新 Antigravity",
+    "Load older messages": "加载更早的消息",
+    "New Window": "新建窗口",
+    "No agents running": "没有正在运行的智能体",
+    "Ran": "已运行",
+    "Reopen Locally": "在本地重新打开",
+    "Restart to Update": "重启以更新",
+    "Run": "运行",
+    "Setting up...": "正在设置...",
+    "Untitled Conversation": "未命名对话",
+    "Welcome to the new Antigravity!": "欢迎使用全新 Antigravity！",
+    "Antigravity has been redesigned to put agents first with new capabilities. If you'd still like a code editor, you can download it as a separate app named Antigravity IDE.": "Antigravity 经过全新设计，以智能体优先并带来全新功能。如果你仍需要代码编辑器，可将其作为名为 Antigravity IDE 的独立应用下载。",
+    "Customizations": "自定义",
     "App": "应用",
     "App Settings": "应用设置",
     "Manage application settings.": "管理应用程序设置。",
@@ -512,6 +533,26 @@
     }
     let approvalMatch = trimmed.match(/^Thought for (\d+)s$/);
     if (approvalMatch) return value.replace(trimmed, `思考了 ${approvalMatch[1]} 秒`);
+    approvalMatch = trimmed.match(/^Thought for (\d+)m$/);
+    if (approvalMatch) return value.replace(trimmed, `思考了 ${approvalMatch[1]} 分钟`);
+    approvalMatch = trimmed.match(/^Thought for (\d+)ms$/);
+    if (approvalMatch) return value.replace(trimmed, `思考了 ${approvalMatch[1]} 毫秒`);
+    approvalMatch = trimmed.match(/^Worked for (\d+)ms$/);
+    if (approvalMatch) return value.replace(trimmed, `工作了 ${approvalMatch[1]} 毫秒`);
+    approvalMatch = trimmed.match(/^Worked for (\d+)s$/);
+    if (approvalMatch) return value.replace(trimmed, `工作了 ${approvalMatch[1]} 秒`);
+    approvalMatch = trimmed.match(/^Worked for (\d+)m$/);
+    if (approvalMatch) return value.replace(trimmed, `工作了 ${approvalMatch[1]} 分钟`);
+    approvalMatch = trimmed.match(/^Worked for (\d+)h$/);
+    if (approvalMatch) return value.replace(trimmed, `工作了 ${approvalMatch[1]} 小时`);
+    approvalMatch = trimmed.match(/^Worked for (\d+)d$/);
+    if (approvalMatch) return value.replace(trimmed, `工作了 ${approvalMatch[1]} 天`);
+    approvalMatch = trimmed.match(/^(\d+) agents? running$/);
+    if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个智能体运行中`);
+    approvalMatch = trimmed.match(/^Exploring (\d+) files?, (\d+) tasks?, running (\d+) commands?$/);
+    if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 个文件、${approvalMatch[2]} 个任务，运行 ${approvalMatch[3]} 条命令`);
+    approvalMatch = trimmed.match(/^Exploring (\d+) files?, running (\d+) commands?$/);
+    if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 个文件，运行 ${approvalMatch[2]} 条命令`);
     approvalMatch = trimmed.match(/^Run (.+)$/s);
     if (approvalMatch) return value.replace(trimmed, `运行 ${approvalMatch[1]}`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)' in this conversation$/s);
@@ -522,8 +563,6 @@
     if (approvalMatch) return value.replace(trimmed, `是，始终允许“${approvalMatch[1]}”`);
     approvalMatch = trimmed.match(/^(\d+) files? changed$/);
     if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个文件已更改`);
-    approvalMatch = trimmed.match(/^Worked for (\d+)m$/);
-    if (approvalMatch) return value.replace(trimmed, `工作了 ${approvalMatch[1]} 分钟`);
     approvalMatch = trimmed.match(/^Media \(Today (.+)\)$/);
     if (approvalMatch) return value.replace(trimmed, `媒体（今天 ${approvalMatch[1]}）`);
     if (trimmed === "**STOP AND VERIFY**:") {
@@ -647,7 +686,10 @@
       if (/^[A-Z][A-Za-z0-9_.-]*\s?\d+(?:\.\d+)+/.test(text)) continue;
       if (/^[\w.+-]+@[\w.-]+$/.test(text)) continue;
       if (/^Send feedback as /i.test(text)) continue;
-      if (/^Workspace_\d+$/i.test(text) || /^go\//i.test(text)) continue;
+      const element = node.parentElement;
+      if (!element || typeof element.closest !== "function") continue;
+      if (element.closest("[data-conversation-id],[data-testid*='conversation'],[data-testid*='chat-item'],.conversation-title,.chat-title")) continue;
+      if (/^(?:git|npm|npx|pnpm|yarn|cargo|python|pip|powershell|bash|sh|cmd|curl|wget|dir|ls|cat)\s+/i.test(text)) continue;
       if (Object.prototype.hasOwnProperty.call(skillSummaries, text)) continue;
       if (["Antigravity", "Alt", "Ctrl", "Shift", "Tab", "Google AI Pro", "Google Chrome", "Google3", "notebooks", "visualization", "Previewing Local Project", "Running Application Locally", "Setting Language to Chinese"].includes(text)) continue;
       if (Object.prototype.hasOwnProperty.call(dictionary, text) || Object.prototype.hasOwnProperty.call(extraDictionary, text)) continue;
@@ -702,6 +744,14 @@
     if (reverse.has(trimmed)) return value.replace(trimmed, reverse.get(trimmed));
     let match = trimmed.match(/^思考了 (\d+) 秒$/);
     if (match) return value.replace(trimmed, `Thought for ${match[1]}s`);
+    match = trimmed.match(/^思考了 (\d+) 分钟$/);
+    if (match) return value.replace(trimmed, `Thought for ${match[1]}m`);
+    match = trimmed.match(/^工作了 (\d+) 秒$/);
+    if (match) return value.replace(trimmed, `Worked for ${match[1]}s`);
+    match = trimmed.match(/^工作了 (\d+) 分钟$/);
+    if (match) return value.replace(trimmed, `Worked for ${match[1]}m`);
+    match = trimmed.match(/^(\d+) 个智能体运行中$/);
+    if (match) return value.replace(trimmed, `${match[1]} agents running`);
     match = trimmed.match(/^显示 (\d+) 项明细$/);
     if (match) return value.replace(trimmed, `Show ${match[1]} breakdowns`);
     match = trimmed.match(/^再显示 (\d+) 项……$/);

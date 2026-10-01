@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.11";
+  const VERSION = "0.6.12";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);

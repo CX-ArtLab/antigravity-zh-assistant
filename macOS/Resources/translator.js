@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.14";
+  const VERSION = "0.6.15";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -423,7 +423,16 @@
     "and select": "并选择",
     "to have the agent generate a plan.": "以让智能体生成计划。",
     "to have the agent generate a plan": "以让智能体生成计划",
-    "If on a supported paid plan, you can use AI credits in the interim.": "如果使用受支持的付费方案，期间可以使用 AI 点数。"
+    "If on a supported paid plan, you can use AI credits in the interim.": "如果使用受支持的付费方案，期间可以使用 AI 点数。",
+    "Individual quota reached": "已达到个人额度上限",
+    "Individual quota reached.": "已达到个人额度上限。",
+    "Please upgrade your subscription to increase your limits.": "请升级订阅以提升额度限制。",
+    "Please upgrade your subscription to increase your limits": "请升级订阅以提升额度限制",
+    "Individual quota": "个人额度",
+    "Quota reached": "已达额度上限",
+    "Quota reached.": "已达额度上限。",
+    "subagents": "子智能体",
+    "subagent": "子智能体"
   });
 
   const skippedSelector = [
@@ -565,7 +574,17 @@
 
   function translateDuration(str) {
     if (!str) return "";
-    return str
+    let s = str.trim();
+    let compact = s.match(/^(\d+d)?\s*(\d+h)?\s*(\d+m)?\s*(\d+s)?$/i);
+    if (compact && (compact[1] || compact[2] || compact[3] || compact[4])) {
+      let parts = [];
+      if (compact[1]) parts.push(compact[1].replace(/d/i, " 天 "));
+      if (compact[2]) parts.push(compact[2].replace(/h/i, " 小时 "));
+      if (compact[3]) parts.push(compact[3].replace(/m/i, " 分钟 "));
+      if (compact[4]) parts.push(compact[4].replace(/s/i, " 秒 "));
+      return parts.join("").replace(/\s+/g, " ").trim();
+    }
+    return s
       .replace(/(\d+)\s*days?/gi, "$1 天")
       .replace(/(\d+)\s*hours?/gi, "$1 小时")
       .replace(/(\d+)\s*minutes?/gi, "$1 分钟")
@@ -630,6 +649,48 @@
     if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 个文件、${approvalMatch[2]} 个任务，运行 ${approvalMatch[3]} 条命令`);
     approvalMatch = trimmed.match(/^Exploring (\d+) files?, running (\d+) commands?$/);
     if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 个文件，运行 ${approvalMatch[2]} 条命令`);
+    approvalMatch = trimmed.match(/^Exploring (\d+) actions?$/);
+    if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 个操作`);
+    approvalMatch = trimmed.match(/^Exploring (\d+) tasks?$/);
+    if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 个任务`);
+    approvalMatch = trimmed.match(/^Exploring (\d+) files?$/);
+    if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 个文件`);
+    approvalMatch = trimmed.match(/^Exploring (\d+) commands?$/);
+    if (approvalMatch) return value.replace(trimmed, `正在探索 ${approvalMatch[1]} 条命令`);
+    approvalMatch = trimmed.match(/^Killed (\d+) subagents?$/);
+    if (approvalMatch) return value.replace(trimmed, `已终止 ${approvalMatch[1]} 个子智能体`);
+    approvalMatch = trimmed.match(/^Spawned (\d+) subagents?$/);
+    if (approvalMatch) return value.replace(trimmed, `已启动 ${approvalMatch[1]} 个子智能体`);
+    approvalMatch = trimmed.match(/^Stopped (\d+) subagents?$/);
+    if (approvalMatch) return value.replace(trimmed, `已停止 ${approvalMatch[1]} 个子智能体`);
+    approvalMatch = trimmed.match(/^Started (\d+) subagents?$/);
+    if (approvalMatch) return value.replace(trimmed, `已启动 ${approvalMatch[1]} 个子智能体`);
+    approvalMatch = trimmed.match(/^Terminated (\d+) subagents?$/);
+    if (approvalMatch) return value.replace(trimmed, `已终止 ${approvalMatch[1]} 个子智能体`);
+    approvalMatch = trimmed.match(/^(\d+) subagents? running$/);
+    if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个子智能体运行中`);
+    approvalMatch = trimmed.match(/^(\d+) subagents? completed$/);
+    if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个子智能体已完成`);
+    approvalMatch = trimmed.match(/^(\d+) subagents? failed$/);
+    if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个子智能体已失败`);
+    approvalMatch = trimmed.match(/^(\d+) actions? running$/);
+    if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个操作运行中`);
+    approvalMatch = trimmed.match(/^(\d+) actions? completed$/);
+    if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个操作已完成`);
+    let msgFromMatch = trimmed.match(/^Message from (.+)$/);
+    if (msgFromMatch) return value.replace(trimmed, `来自 ${msgFromMatch[1]} 的消息`);
+    let errFromMatch = trimmed.match(/^Error from (.+)$/);
+    if (errFromMatch) return value.replace(trimmed, `来自 ${errFromMatch[1]} 的错误`);
+    let taskFromMatch = trimmed.match(/^Task from (.+)$/);
+    if (taskFromMatch) return value.replace(trimmed, `来自 ${taskFromMatch[1]} 的任务`);
+    let respFromMatch = trimmed.match(/^Response from (.+)$/);
+    if (respFromMatch) return value.replace(trimmed, `来自 ${respFromMatch[1]} 的回复`);
+    let resFromMatch = trimmed.match(/^Result from (.+)$/);
+    if (resFromMatch) return value.replace(trimmed, `来自 ${resFromMatch[1]} 的结果`);
+    let quotaErrMatch = trimmed.match(/^Individual quota reached\.\s*Please upgrade your subscription to increase your limits\.\s*Resets in (.+?)\.?$/i);
+    if (quotaErrMatch) return value.replace(trimmed, `已达到个人额度上限。请升级订阅以提升额度限制。将在 ${translateDuration(quotaErrMatch[1])}后重置。`);
+    quotaErrMatch = trimmed.match(/^Individual quota reached\.\s*Resets in (.+?)\.?$/i);
+    if (quotaErrMatch) return value.replace(trimmed, `已达到个人额度上限。将在 ${translateDuration(quotaErrMatch[1])}后重置。`);
     approvalMatch = trimmed.match(/^Run (.+)$/s);
     if (approvalMatch) return value.replace(trimmed, `运行 ${approvalMatch[1]}`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)' in this conversation$/s);
@@ -949,6 +1010,36 @@
     if (match) return value.replace(trimmed, `Your plan's baseline quota will refresh on ${match[1]}. To continue using this model now, enable AI Credit overages.`);
     match = trimmed.match(/^您方案的基础额度将在 (.+?) 刷新。$/);
     if (match) return value.replace(trimmed, `Your plan's baseline quota will refresh on ${match[1]}.`);
+    match = trimmed.match(/^来自 (.+) 的消息$/);
+    if (match) return value.replace(trimmed, `Message from ${match[1]}`);
+    match = trimmed.match(/^来自 (.+) 的错误$/);
+    if (match) return value.replace(trimmed, `Error from ${match[1]}`);
+    match = trimmed.match(/^来自 (.+) 的任务$/);
+    if (match) return value.replace(trimmed, `Task from ${match[1]}`);
+    match = trimmed.match(/^来自 (.+) 的回复$/);
+    if (match) return value.replace(trimmed, `Response from ${match[1]}`);
+    match = trimmed.match(/^来自 (.+) 的结果$/);
+    if (match) return value.replace(trimmed, `Result from ${match[1]}`);
+    match = trimmed.match(/^已达到个人额度上限。请升级订阅以提升额度限制。将在 (.+?)后重置。$/);
+    if (match) return value.replace(trimmed, `Individual quota reached. Please upgrade your subscription to increase your limits. Resets in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^已达到个人额度上限。将在 (.+?)后重置。$/);
+    if (match) return value.replace(trimmed, `Individual quota reached. Resets in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^正在探索 (\d+) 个操作$/);
+    if (match) return value.replace(trimmed, `Exploring ${match[1]} action${match[1] === "1" ? "" : "s"}`);
+    match = trimmed.match(/^正在探索 (\d+) 个任务$/);
+    if (match) return value.replace(trimmed, `Exploring ${match[1]} task${match[1] === "1" ? "" : "s"}`);
+    match = trimmed.match(/^正在探索 (\d+) 个文件$/);
+    if (match) return value.replace(trimmed, `Exploring ${match[1]} file${match[1] === "1" ? "" : "s"}`);
+    match = trimmed.match(/^正在探索 (\d+) 条命令$/);
+    if (match) return value.replace(trimmed, `Exploring ${match[1]} command${match[1] === "1" ? "" : "s"}`);
+    match = trimmed.match(/^已终止 (\d+) 个子智能体$/);
+    if (match) return value.replace(trimmed, `Killed ${match[1]} subagent${match[1] === "1" ? "" : "s"}`);
+    match = trimmed.match(/^已启动 (\d+) 个子智能体$/);
+    if (match) return value.replace(trimmed, `Spawned ${match[1]} subagent${match[1] === "1" ? "" : "s"}`);
+    match = trimmed.match(/^已停止 (\d+) 个子智能体$/);
+    if (match) return value.replace(trimmed, `Stopped ${match[1]} subagent${match[1] === "1" ? "" : "s"}`);
+    match = trimmed.match(/^(\d+) 个子智能体运行中$/);
+    if (match) return value.replace(trimmed, `${match[1]} subagent${match[1] === "1" ? "" : "s"} running`);
     return null;
   }
 

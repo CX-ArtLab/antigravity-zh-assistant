@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.12";
+  const VERSION = "0.6.13";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -394,7 +394,23 @@
     "Use these skills when you need to explore the database structure, identify schema objects like views and triggers, and execute SQL queries to interact with your data.": "需要探索数据库结构、识别视图和触发器等架构对象，或执行 SQL 查询处理数据时使用这些技能。",
     "Use these skills when you need to audit database health, identify storage bloat, find broken indexes, and verify tablespace or maintenance configurations.": "需要审计数据库健康状况、识别存储膨胀、查找损坏索引，或核验表空间和维护配置时使用这些技能。",
     "You're an expert in AlloyDB Omni Operator running in Kubernetes. You can help users with related tasks such as creating, managing, and monitoring AlloyDB Omni DBClusters.": "用于在 Kubernetes 中通过 AlloyDB Omni Operator 创建、管理和监控 AlloyDB Omni 数据库集群。",
-    "Use these skills when you need to troubleshoot production issues by identifying locks, tracking long-running transactions, and getting a high-level view of server state.": "需要通过识别锁、跟踪长时间运行的事务和查看服务器整体状态来排查生产问题时使用这些技能。"
+    "Use these skills when you need to troubleshoot production issues by identifying locks, tracking long-running transactions, and getting a high-level view of server state.": "需要通过识别锁、跟踪长时间运行的事务和查看服务器整体状态来排查生产问题时使用这些技能。",
+    "Global Permissions": "全局权限",
+    "Tool Permissions": "工具权限",
+    "Modify permissions for file, terminal, and MCP tools.": "修改文件、终端和 MCP 工具的权限。",
+    "Plan Review Policy": "计划审查策略",
+    "Whether the agent asks you to review its documents.": "智能体在生成文档时是否请求您进行审查。",
+    "Controls the actions the agent can take.": "控制智能体可执行的操作。",
+    "Type / and select plan to have the agent generate a plan.": "输入 / 并选择 plan 以让智能体生成计划。",
+    "Other Customizations": "其他自定义",
+    "No MCP servers installed": "未安装 MCP 服务器",
+    "Use Add MCP to browse the store, or add a custom server via the MCP config.": "使用“添加 MCP”浏览商店，或通过 MCP 配置添加自定义服务器。",
+    "The breakdown below shows token usage from customizations like rules, skills, and MCP. If a budget is exceeded, large rules are demoted to path pointers and large customizations are excluded automatically.": "以下明细显示规则、技能和 MCP 等自定义内容占用的 Token 用量。超出预算时，较大的规则将降级为路径指针，较大的自定义内容将被自动排除。",
+    "Always Review": "始终审查",
+    "Never Review": "从不审查",
+    "Ask Every Time": "每次询问",
+    "Allow All": "允许全部",
+    "Deny All": "拒绝全部"
   });
 
   const skippedSelector = [
@@ -466,7 +482,20 @@
     "ml-best-practices": "机器学习和数据分析最佳实践，涵盖聚类、分类、回归、预测、统计检验、模型比较和 BigQuery ML。",
     "notebook-guidance": "使用 Jupyter Notebook 进行数据分析、探索和可视化，涵盖执行验证、依赖、绘图及 BigQuery 工作流。",
     "skill-repair": "修复并重新安装失败的智能体技能，并在修复后精确更新 manifest.json。",
-    "spanner-data": "探索 Spanner 数据库结构、发现表和图等对象，并执行自定义 SQL 查询。"
+    "spanner-data": "探索 Spanner 数据库结构、发现表和图等对象，并执行自定义 SQL 查询。",
+    "automation": "交互式引导设计并创建定时后台自动化任务（如定时汇总邮件、每周待办等）。",
+    "generative_ui": "在对话内或独立工件中渲染丰富的交互式 HTML 微件、图表、数据可视化与教育引导。",
+    "migrate-workflows": "自动将旧版工作流迁移为全局或工作区标准技能，安全归档旧工作流文件。",
+    "permissioned-github": "与 GitHub 进行交互的操作规范；当命令因智能体环境限制而失败时向用户请求权限。",
+    "plugin": "管理和创建插件（包含技能、智能体、规则、MCP 服务器及钩子的命名空间包，支持整体安装、启用与禁用）。",
+    "ponytail": "采用极简、高效、无冗余的资深工程师方案，优先运用标准库与平台原生能力，拒绝过度工程化。",
+    "ponytail-audit": "对整个代码库进行过度工程化审计，列出可删除、简化或用标准库/原生功能替代的建议清单。",
+    "ponytail-debt": "汇总代码库中的待办与技术债务注释（ponytail 注释），生成跟踪清单。",
+    "ponytail-gain": "以精简记分板形式展示精简方案带来的代码减少量、成本节约与速度提升收益。",
+    "ponytail-help": "精简模式所有指令、技能与使用方式的快速参考指南卡片。",
+    "ponytail-review": "专注于审查过度工程化并查找可删除项，指出重复造轮子、多余依赖与无用抽象。",
+    "ui-extension": "为 Antigravity 构建、打包、运行和调试 UI 扩展（在侧边面板渲染并通过 Node.js Sidecar SDK 提供服务的交互式 Web 面板）。",
+    "ui-plugin-navigation": "发现与当前任务相关的 UI 插件面板，并在对话中提供一键在侧边面板打开/切换的快捷入口。"
   });
 
   const originalTextNodes = new Map();
@@ -521,6 +550,28 @@
     for (const nameNode of names) translateSkillCard(nameNode, skillSummaries[nameNode.nodeValue.trim()]);
   }
 
+  function translateDuration(str) {
+    if (!str) return "";
+    return str
+      .replace(/(\d+)\s*days?/gi, "$1 天")
+      .replace(/(\d+)\s*hours?/gi, "$1 小时")
+      .replace(/(\d+)\s*minutes?/gi, "$1 分钟")
+      .replace(/(\d+)\s*seconds?/gi, "$1 秒")
+      .replace(/,\s*/g, " ")
+      .trim();
+  }
+
+  function restoreDuration(str) {
+    if (!str) return "";
+    return str
+      .replace(/(\d+)\s*天/g, "$1 days, ")
+      .replace(/(\d+)\s*小时/g, "$1 hours, ")
+      .replace(/(\d+)\s*分钟/g, "$1 minutes, ")
+      .replace(/(\d+)\s*秒/g, "$1 seconds, ")
+      .replace(/,\s*$/, "")
+      .trim();
+  }
+
   function translateExact(value) {
     if (!value) return null;
     const trimmed = value.trim();
@@ -565,6 +616,22 @@
     if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个文件已更改`);
     approvalMatch = trimmed.match(/^Media \(Today (.+)\)$/);
     if (approvalMatch) return value.replace(trimmed, `媒体（今天 ${approvalMatch[1]}）`);
+    let quotaMatch = trimmed.match(/^You have used some of your weekly limit, it will fully refresh in (.+)\.$/i);
+    if (quotaMatch) return value.replace(trimmed, `您已使用部分每周额度，将在 ${translateDuration(quotaMatch[1])}后完全刷新。`);
+    quotaMatch = trimmed.match(/^You have used all of your weekly limit, it will fully refresh in (.+)\.$/i);
+    if (quotaMatch) return value.replace(trimmed, `您的每周额度已用尽，将在 ${translateDuration(quotaMatch[1])}后完全刷新。`);
+    quotaMatch = trimmed.match(/^You have used some of your (?:5-hour|five hour) limit, it will fully refresh in (.+)\.$/i);
+    if (quotaMatch) return value.replace(trimmed, `您已使用部分 5 小时额度，将在 ${translateDuration(quotaMatch[1])}后完全刷新。`);
+    quotaMatch = trimmed.match(/^You have used all of your (?:5-hour|five hour) limit, it will fully refresh in (.+)\.$/i);
+    if (quotaMatch) return value.replace(trimmed, `您的 5 小时额度已用尽，将在 ${translateDuration(quotaMatch[1])}后完全刷新。`);
+    quotaMatch = trimmed.match(/^You have used some of your daily limit, it will fully refresh in (.+)\.$/i);
+    if (quotaMatch) return value.replace(trimmed, `您已使用部分每日额度，将在 ${translateDuration(quotaMatch[1])}后完全刷新。`);
+    quotaMatch = trimmed.match(/^You have used all of your daily limit, it will fully refresh in (.+)\.$/i);
+    if (quotaMatch) return value.replace(trimmed, `您的每日额度已用尽，将在 ${translateDuration(quotaMatch[1])}后完全刷新。`);
+    let policyMatch = trimmed.match(/^Controls the actions the agent can take(?:\. Modified in (.+))?\.$/);
+    if (policyMatch) return value.replace(trimmed, policyMatch[1] ? `控制智能体可执行的操作。已在 ${policyMatch[1]} 中修改` : "控制智能体可执行的操作。");
+    policyMatch = trimmed.match(/^Whether the agent asks you to review its documents(?:\. Modified in (.+))?\.$/);
+    if (policyMatch) return value.replace(trimmed, policyMatch[1] ? `智能体在生成文档时是否请求您进行审查。已在 ${policyMatch[1]} 中修改` : "智能体在生成文档时是否请求您进行审查。");
     if (trimmed === "**STOP AND VERIFY**:") {
       return value.replace(trimmed, "**停止并确认**：");
     }
@@ -589,6 +656,45 @@
     if (trimmed.startsWith("Use these skills when you need to explore the database structure, discover schema objects like tables and graphs")) {
       return value.replace(trimmed, "需要探索数据库结构、发现表和图等架构对象，或执行自定义 SQL 查询处理数据时使用这些技能。");
     }
+    if (trimmed.startsWith("Interactive guide to design and create a scheduled background automation")) {
+      return value.replace(trimmed, "交互式引导设计并创建定时后台自动化任务（如定时汇总邮件、每周待办等）。");
+    }
+    if (trimmed.startsWith("How to render rich interactive HTML widgets inline in the chat")) {
+      return value.replace(trimmed, "在对话内或独立工件中渲染丰富的交互式 HTML 微件、图表、数据可视化与教育引导。");
+    }
+    if (trimmed.startsWith("Automatically migrate legacy workflows to modern skills")) {
+      return value.replace(trimmed, "自动将旧版工作流迁移为全局或工作区标准技能，安全归档旧工作流文件。");
+    }
+    if (trimmed.startsWith("Guidelines for interacting with GitHub; prompts user for permissions")) {
+      return value.replace(trimmed, "与 GitHub 进行交互的操作规范；当命令因智能体环境限制而失败时向用户请求权限。");
+    }
+    if (trimmed.startsWith("Manage and create plugins (namespaced packages containing skills")) {
+      return value.replace(trimmed, "管理和创建插件（包含技能、智能体、规则、MCP 服务器及钩子的命名空间包，支持整体安装、启用与禁用）。");
+    }
+    if (trimmed.startsWith("Forces the laziest solution that actually works")) {
+      return value.replace(trimmed, "采用极简、高效、无冗余的资深工程师方案，优先运用标准库与平台原生能力，拒绝过度工程化。");
+    }
+    if (trimmed.startsWith("Whole-repo audit for over-engineering")) {
+      return value.replace(trimmed, "对整个代码库进行过度工程化审计，列出可删除、简化或用标准库/原生功能替代的建议清单。");
+    }
+    if (trimmed.startsWith("Harvest every `ponytail:` comment in the codebase")) {
+      return value.replace(trimmed, "汇总代码库中的待办与技术债务注释（ponytail 注释），生成跟踪清单。");
+    }
+    if (trimmed.startsWith("Show ponytail's measured impact as a compact scoreboard")) {
+      return value.replace(trimmed, "以精简记分板形式展示精简方案带来的代码减少量、成本节约与速度提升收益。");
+    }
+    if (trimmed.startsWith("Quick-reference card for all ponytail modes")) {
+      return value.replace(trimmed, "精简模式所有指令、技能与使用方式的快速参考指南卡片。");
+    }
+    if (trimmed.startsWith("Code review focused exclusively on over-engineering")) {
+      return value.replace(trimmed, "专注于审查过度工程化并查找可删除项，指出重复造轮子、多余依赖与无用抽象。");
+    }
+    if (trimmed.startsWith("Build, package, run, and debug UI extensions for Antigravity")) {
+      return value.replace(trimmed, "为 Antigravity 构建、打包、运行和调试 UI 扩展（在侧边面板渲染并通过 Node.js Sidecar SDK 提供服务的交互式 Web 面板）。");
+    }
+    if (trimmed.startsWith("Discovers UI plugin panels relevant to the current user task")) {
+      return value.replace(trimmed, "发现与当前任务相关的 UI 插件面板，并在对话中提供一键在侧边面板打开/切换的快捷入口。");
+    }
     if (trimmed.includes("[MCP Proxy] Socket connection error:")) {
       const translatedError = trimmed
         .replace("Error: [MCP Proxy] Socket connection error:", "错误：[MCP 代理] 套接字连接错误：")
@@ -607,7 +713,7 @@
     if (match) return value.replace(trimmed, `${match[1]}分钟`);
     match = trimmed.match(/^Select model, current: (.+)$/);
     if (match) return value.replace(trimmed, `选择模型，当前：${match[1]}`);
-    match = trimmed.match(/^Show (\d+) breakdowns$/);
+    match = trimmed.match(/^Show (\d+) breakdowns?$/);
     if (match) return value.replace(trimmed, `显示 ${match[1]} 项明细`);
     match = trimmed.match(/^Show (\d+) more\.\.\.$/);
     if (match) return value.replace(trimmed, `再显示 ${match[1]} 项……`);
@@ -753,11 +859,27 @@
     match = trimmed.match(/^(\d+) 个智能体运行中$/);
     if (match) return value.replace(trimmed, `${match[1]} agents running`);
     match = trimmed.match(/^显示 (\d+) 项明细$/);
-    if (match) return value.replace(trimmed, `Show ${match[1]} breakdowns`);
+    if (match) return value.replace(trimmed, `Show ${match[1]} breakdown${match[1] === "1" ? "" : "s"}`);
     match = trimmed.match(/^再显示 (\d+) 项……$/);
     if (match) return value.replace(trimmed, `Show ${match[1]} more...`);
     match = trimmed.match(/^自定义内容预算还剩 (\d+(?:\.\d+)?)%。$/);
     if (match) return value.replace(trimmed, `${match[1]}% of the customization budget is available.`);
+    match = trimmed.match(/^您已使用部分每周额度，将在 (.+)后完全刷新。$/);
+    if (match) return value.replace(trimmed, `You have used some of your weekly limit, it will fully refresh in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^您的每周额度已用尽，将在 (.+)后完全刷新。$/);
+    if (match) return value.replace(trimmed, `You have used all of your weekly limit, it will fully refresh in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^您已使用部分 5 小时额度，将在 (.+)后完全刷新。$/);
+    if (match) return value.replace(trimmed, `You have used some of your 5-hour limit, it will fully refresh in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^您的 5 小时额度已用尽，将在 (.+)后完全刷新。$/);
+    if (match) return value.replace(trimmed, `You have used all of your 5-hour limit, it will fully refresh in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^您已使用部分每日额度，将在 (.+)后完全刷新。$/);
+    if (match) return value.replace(trimmed, `You have used some of your daily limit, it will fully refresh in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^您的每日额度已用尽，将在 (.+)后完全刷新。$/);
+    if (match) return value.replace(trimmed, `You have used all of your daily limit, it will fully refresh in ${restoreDuration(match[1])}.`);
+    match = trimmed.match(/^控制智能体可执行的操作。(?:已在 (.+) 中修改)?$/);
+    if (match) return value.replace(trimmed, match[1] ? `Controls the actions the agent can take. Modified in ${match[1]}.` : "Controls the actions the agent can take.");
+    match = trimmed.match(/^智能体在生成文档时是否请求您进行审查。(?:已在 (.+) 中修改)?$/);
+    if (match) return value.replace(trimmed, match[1] ? `Whether the agent asks you to review its documents. Modified in ${match[1]}.` : "Whether the agent asks you to review its documents.");
     return null;
   }
 

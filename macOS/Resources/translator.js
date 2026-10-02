@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.13";
+  const VERSION = "0.6.14";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -410,7 +410,20 @@
     "Never Review": "从不审查",
     "Ask Every Time": "每次询问",
     "Allow All": "允许全部",
-    "Deny All": "拒绝全部"
+    "Deny All": "拒绝全部",
+    "Baseline model quota reached": "已达到基础模型额度上限",
+    "See Plans": "查看方案",
+    "Enable Overages": "开启超额点数",
+    "Disable Overages": "停用超额点数",
+    "Contrast": "对比度",
+    "Strong": "高对比度",
+    "Always Proceed": "始终继续",
+    "Always Ask": "始终询问",
+    "Modified in": "已在以下位置修改：",
+    "and select": "并选择",
+    "to have the agent generate a plan.": "以让智能体生成计划。",
+    "to have the agent generate a plan": "以让智能体生成计划",
+    "If on a supported paid plan, you can use AI credits in the interim.": "如果使用受支持的付费方案，期间可以使用 AI 点数。"
   });
 
   const skippedSelector = [
@@ -572,10 +585,23 @@
       .trim();
   }
 
+  function translateLimitName(str) {
+    const s = (str || "").trim().toLowerCase();
+    if (s === "5-hour" || s === "5 hour" || s === "five hour" || s === "5-hours" || s === "5 hours") return "5 小时";
+    if (s === "weekly") return "每周";
+    if (s === "daily") return "每日";
+    if (s === "monthly") return "每月";
+    return str;
+  }
+
   function translateExact(value) {
     if (!value) return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
+    if (trimmed === "Type") {
+      if (/\s$/.test(value)) return value.replace(trimmed, "输入");
+      return value.replace(trimmed, dictionary[trimmed] || "类型");
+    }
     if (Object.prototype.hasOwnProperty.call(dictionary, trimmed)) {
       return value.replace(trimmed, dictionary[trimmed]);
     }
@@ -616,6 +642,43 @@
     if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个文件已更改`);
     approvalMatch = trimmed.match(/^Media \(Today (.+)\)$/);
     if (approvalMatch) return value.replace(trimmed, `媒体（今天 ${approvalMatch[1]}）`);
+    let modMatch = trimmed.match(/^Modified in (.+)$/);
+    if (modMatch) return value.replace(trimmed, `已在 ${modMatch[1]} 中修改`);
+    let hitMatch = trimmed.match(/^You have hit your (.+?) limit, so the (.+?) limit does not currently apply\. Your (.+?) limit will refresh in (.+)\.$/i);
+    if (hitMatch) {
+      return value.replace(
+        trimmed,
+        `您已达到 ${translateLimitName(hitMatch[1])}额度上限，因此${translateLimitName(hitMatch[2])}额度当前不适用。您的 ${translateLimitName(hitMatch[3])}额度将在 ${translateDuration(hitMatch[4])}后刷新。`
+      );
+    }
+    hitMatch = trimmed.match(/^You have hit your (.+?) limit, it will refresh in (.+?)\. If on a supported paid plan, you can use AI credits in the interim\.$/i);
+    if (hitMatch) {
+      return value.replace(
+        trimmed,
+        `您已达到 ${translateLimitName(hitMatch[1])}额度上限，将在 ${translateDuration(hitMatch[2])}后刷新。如果使用受支持的付费方案，期间可以使用 AI 点数。`
+      );
+    }
+    hitMatch = trimmed.match(/^You have hit your (.+?) limit, it will refresh in (.+)\.$/i);
+    if (hitMatch) {
+      return value.replace(
+        trimmed,
+        `您已达到 ${translateLimitName(hitMatch[1])}额度上限，将在 ${translateDuration(hitMatch[2])}后刷新。`
+      );
+    }
+    let baselineMatch = trimmed.match(/^Your plan's baseline quota will refresh on (.+?)\. To continue using this model now, enable AI Credit overages\.$/i);
+    if (baselineMatch) {
+      return value.replace(
+        trimmed,
+        `您方案的基础额度将在 ${baselineMatch[1]} 刷新。若要立即继续使用此模型，请开启使用 AI 超额点数。`
+      );
+    }
+    baselineMatch = trimmed.match(/^Your plan's baseline quota will refresh on (.+?)\.$/i);
+    if (baselineMatch) {
+      return value.replace(
+        trimmed,
+        `您方案的基础额度将在 ${baselineMatch[1]} 刷新。`
+      );
+    }
     let quotaMatch = trimmed.match(/^You have used some of your weekly limit, it will fully refresh in (.+)\.$/i);
     if (quotaMatch) return value.replace(trimmed, `您已使用部分每周额度，将在 ${translateDuration(quotaMatch[1])}后完全刷新。`);
     quotaMatch = trimmed.match(/^You have used all of your weekly limit, it will fully refresh in (.+)\.$/i);
@@ -880,6 +943,12 @@
     if (match) return value.replace(trimmed, match[1] ? `Controls the actions the agent can take. Modified in ${match[1]}.` : "Controls the actions the agent can take.");
     match = trimmed.match(/^智能体在生成文档时是否请求您进行审查。(?:已在 (.+) 中修改)?$/);
     if (match) return value.replace(trimmed, match[1] ? `Whether the agent asks you to review its documents. Modified in ${match[1]}.` : "Whether the agent asks you to review its documents.");
+    match = trimmed.match(/^已在 (.+) 中修改$/);
+    if (match) return value.replace(trimmed, `Modified in ${match[1]}`);
+    match = trimmed.match(/^您方案的基础额度将在 (.+?) 刷新。若要立即继续使用此模型，请开启使用 AI 超额点数。$/);
+    if (match) return value.replace(trimmed, `Your plan's baseline quota will refresh on ${match[1]}. To continue using this model now, enable AI Credit overages.`);
+    match = trimmed.match(/^您方案的基础额度将在 (.+?) 刷新。$/);
+    if (match) return value.replace(trimmed, `Your plan's baseline quota will refresh on ${match[1]}.`);
     return null;
   }
 

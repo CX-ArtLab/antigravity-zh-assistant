@@ -23,8 +23,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Google Antigravity 离线界面汉化伴侣")]
 [assembly: AssemblyCompany("Local Companion")]
 [assembly: AssemblyProduct("Antigravity 中文助手")]
-[assembly: AssemblyVersion("0.6.15.0")]
-[assembly: AssemblyFileVersion("0.6.15.0")]
+[assembly: AssemblyVersion("0.6.16.0")]
+[assembly: AssemblyFileVersion("0.6.16.0")]
 
 namespace AntigravityZhAssistant
 {
@@ -149,7 +149,7 @@ namespace AntigravityZhAssistant
             localHttp.Timeout = TimeSpan.FromSeconds(4);
             updateHttp = new HttpClient();
             updateHttp.Timeout = TimeSpan.FromSeconds(8);
-            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.15");
+            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.16");
 
             Text = AppName;
             StartPosition = FormStartPosition.CenterScreen;

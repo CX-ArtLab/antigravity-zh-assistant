@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.15";
+  const VERSION = "0.6.16";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -258,14 +258,54 @@
     "Keyboard shortcuts": "键盘快捷键",
     "Agent Settings": "智能体设置",
     "Security Preset": "安全预设",
+    "Security Presets": "安全预设",
+    "Security preset": "安全预设",
+    "Security presets": "安全预设",
     "Choose a predefined security preset for the agent. This controls terminal auto-execution policy, and file access policy.": "为智能体选择预设的安全方案，用于控制终端自动执行和文件访问策略。",
+    "Controls what the agent is allowed to do.": "控制智能体可执行的操作。",
+    "Tool Permissions": "工具权限",
+    "Permissions to modify files, terminal, and MCP tools.": "修改文件、终端和 MCP 工具的权限。",
+    "Learn more:": "了解更多：",
+    "Learn more: ": "了解更多：",
     "Learn more about": "了解更多：",
+    "Learn more about ": "了解更多：",
     "Inherit General": "继承常规设置",
     "Inherits your General settings when working in this project.": "继承常规页面中的设置。",
     "Requires manual review for all terminal commands and file accesses outside of the working folders.": "所有终端命令及工作文件夹以外的文件访问都需要手动确认。",
+    "A low-risk mode that requires manual review for all terminal commands and file accesses outside of the working folders.": "一种低风险模式，所有终端命令及工作文件夹以外的文件访问都需要手动审查。",
     "All terminal commands require review. The agent can read or write to any file in the machine.": "所有终端命令都需要确认；智能体可以读写电脑上的任意文件。",
+    "A mode where all terminal commands require review. The agent can read or write to any file in the machine.": "一种所有终端命令都需要审查的模式。智能体可以读写电脑上的任意文件。",
+    "A mode where all terminal commands require review. The agent can read or write to any file on the machine.": "一种所有终端命令都需要审查的模式。智能体可以读写电脑上的任意文件。",
     "Disables all safety barriers for maximal iteration velocity.": "关闭所有安全限制，以获得最快的迭代速度。",
+    "A high-risk mode that disables all safety barriers. The agent operates with full system access, auto-executes all terminal commands, and reads or writes to all local files without review prompts.": "一种高风险模式，会禁用所有安全防护措施。智能体将拥有完全的系统访问权限，自动执行所有终端命令，并在无需审查提示的情况下读取或写入所有本地文件。",
     "Manually customize individual settings.": "手动逐项配置权限。",
+    "Customize individual settings for file access and terminal execution.": "手动自定义文件访问和终端执行等各项设置。",
+    "Auto-execute terminal commands": "自动执行终端命令",
+    "Auto-execute commands": "自动执行命令",
+    "Auto-read local files": "自动读取本地文件",
+    "Auto-write local files": "自动写入本地文件",
+    "Review required": "需要审查",
+    "Review prompts": "审查提示",
+    "Without review prompts": "无需审查提示",
+    "This request was blocked by Gemini's filters. They can occasionally trigger by mistake on safe coding, security, or biology-related queries. Please try rephrasing your prompt. You can send feedback or read more about our policies here.": "此请求已被 Gemini 过滤器拦截。在进行安全相关的代码编写、安全测试或生物学相关查询时可能会误触发。请尝试换种方式描述您的提示词。您可以发送反馈或在此处了解有关我们政策的更多信息。",
+    "This request was blocked by Gemini's filters. They can occasionally trigger by mistake on safe coding, security, or biology-related queries. Please try rephrasing your prompt. You can": "此请求已被 Gemini 过滤器拦截。在进行安全相关的代码编写、安全测试或生物学相关查询时可能会误触发。请尝试换种方式描述您的提示词。您可以",
+    "This request was blocked by Gemini's filters.": "此请求已被 Gemini 过滤器拦截。",
+    "They can occasionally trigger by mistake on safe coding, security, or biology-related queries.": "在进行安全相关的代码编写、安全测试或生物学相关查询时可能会误触发。",
+    "Please try rephrasing your prompt.": "请尝试换种方式描述您的提示词。",
+    "send feedback": "发送反馈",
+    "Send feedback": "发送反馈",
+    "or read more about": "或在此处了解有关",
+    "our policies here": "我们政策的更多信息",
+    "our policies here.": "我们政策的更多信息。",
+    "read more about our policies here": "在此处了解有关我们政策的更多信息",
+    "read more about our policies here.": "在此处了解有关我们政策的更多信息。",
+    "This request was blocked by safety filters.": "此请求已被安全过滤器拦截。",
+    "This conversation was blocked by Gemini's safety filters.": "此对话已被 Gemini 安全过滤器拦截。",
+    "The model refused to generate a response because the prompt triggered safety filters.": "模型拒绝生成回复，因为提示词触发了安全过滤器。",
+    "Please try rephrasing your prompt or starting a new conversation.": "请尝试换种方式描述您的提示词，或开启新对话。",
+    "Blocked by safety filters": "已被安全过滤器拦截",
+    "Safety filter triggered": "已触发安全过滤器",
+    "Safety warning": "安全警告",
     "Agent settings and permissions for conversations outside of projects.": "为项目外的对话配置智能体设置和权限。",
     "Agent settings and permissions for this project.": "配置此项目的智能体设置和权限。",
     "Agent Behavior": "智能体行为",
@@ -756,6 +796,30 @@
     if (policyMatch) return value.replace(trimmed, policyMatch[1] ? `控制智能体可执行的操作。已在 ${policyMatch[1]} 中修改` : "控制智能体可执行的操作。");
     policyMatch = trimmed.match(/^Whether the agent asks you to review its documents(?:\. Modified in (.+))?\.$/);
     if (policyMatch) return value.replace(trimmed, policyMatch[1] ? `智能体在生成文档时是否请求您进行审查。已在 ${policyMatch[1]} 中修改` : "智能体在生成文档时是否请求您进行审查。");
+    let learnMatch = trimmed.match(/^Learn more(?::\s*|\s+about\s+)(.+)$/i);
+    if (learnMatch) {
+      const target = learnMatch[1].trim();
+      const targetTrans = translateExact(target) || dictionary[target] || extraDictionary[target] || target;
+      return value.replace(trimmed, `了解更多：${targetTrans}`);
+    }
+    if (trimmed.startsWith("A high-risk mode that disables all safety barriers")) {
+      return value.replace(trimmed, "一种高风险模式，会禁用所有安全防护措施。智能体将拥有完全的系统访问权限，自动执行所有终端命令，并在无需审查提示的情况下读取或写入所有本地文件。");
+    }
+    if (trimmed.startsWith("A low-risk mode that requires manual review")) {
+      return value.replace(trimmed, "一种低风险模式，所有终端命令及工作文件夹以外的文件访问都需要手动审查。");
+    }
+    if (trimmed.startsWith("A mode where all terminal commands require review")) {
+      return value.replace(trimmed, "一种所有终端命令都需要审查的模式。智能体可以读写电脑上的任意文件。");
+    }
+    if (trimmed.startsWith("This request was blocked by Gemini's filters")) {
+      if (trimmed.includes("our policies here")) {
+        return value.replace(trimmed, "此请求已被 Gemini 过滤器拦截。在进行安全相关的代码编写、安全测试或生物学相关查询时可能会误触发。请尝试换种方式描述您的提示词。您可以发送反馈或在此处了解有关我们政策的更多信息。");
+      }
+      if (trimmed.endsWith("You can")) {
+        return value.replace(trimmed, "此请求已被 Gemini 过滤器拦截。在进行安全相关的代码编写、安全测试或生物学相关查询时可能会误触发。请尝试换种方式描述您的提示词。您可以");
+      }
+      return value.replace(trimmed, "此请求已被 Gemini 过滤器拦截。在进行安全相关的代码编写、安全测试或生物学相关查询时可能会误触发。请尝试换种方式描述您的提示词。");
+    }
     if (trimmed === "**STOP AND VERIFY**:") {
       return value.replace(trimmed, "**停止并确认**：");
     }
@@ -940,7 +1004,7 @@
     if (translated && translated !== node.nodeValue) setTranslatedText(node, translated);
   }
 
-  const translatedAttributes = ["aria-label", "title", "placeholder", "data-tooltip-content"];
+  const translatedAttributes = ["aria-label", "title", "placeholder", "data-tooltip-content", "data-tooltip", "data-title", "aria-description"];
   function translateElement(element) {
     if (!(element instanceof Element)) return;
     for (const attribute of translatedAttributes) {
@@ -1040,6 +1104,18 @@
     if (match) return value.replace(trimmed, `Stopped ${match[1]} subagent${match[1] === "1" ? "" : "s"}`);
     match = trimmed.match(/^(\d+) 个子智能体运行中$/);
     if (match) return value.replace(trimmed, `${match[1]} subagent${match[1] === "1" ? "" : "s"} running`);
+    if (trimmed.startsWith("一种高风险模式，会禁用所有安全防护措施")) {
+      return value.replace(trimmed, "A high-risk mode that disables all safety barriers. The agent operates with full system access, auto-executes all terminal commands, and reads or writes to all local files without review prompts.");
+    }
+    if (trimmed.startsWith("此请求已被 Gemini 过滤器拦截")) {
+      if (trimmed.includes("我们政策的更多信息")) {
+        return value.replace(trimmed, "This request was blocked by Gemini's filters. They can occasionally trigger by mistake on safe coding, security, or biology-related queries. Please try rephrasing your prompt. You can send feedback or read more about our policies here.");
+      }
+      if (trimmed.endsWith("您可以")) {
+        return value.replace(trimmed, "This request was blocked by Gemini's filters. They can occasionally trigger by mistake on safe coding, security, or biology-related queries. Please try rephrasing your prompt. You can");
+      }
+      return value.replace(trimmed, "This request was blocked by Gemini's filters. They can occasionally trigger by mistake on safe coding, security, or biology-related queries. Please try rephrasing your prompt.");
+    }
     return null;
   }
 
@@ -1053,7 +1129,7 @@
       if (restored && restored !== textNode.nodeValue) textNode.nodeValue = restored;
     }
     if (root.querySelectorAll) {
-      root.querySelectorAll("[aria-label],[title],[placeholder],[data-tooltip-content]").forEach((element) => {
+      root.querySelectorAll("[aria-label],[title],[placeholder],[data-tooltip-content],[data-tooltip],[data-title],[aria-description]").forEach((element) => {
         for (const attribute of translatedAttributes) {
           if (!element.hasAttribute(attribute)) continue;
           const value = element.getAttribute(attribute);

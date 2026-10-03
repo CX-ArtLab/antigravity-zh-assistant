@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.16";
+  const VERSION = "0.6.17";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -306,6 +306,135 @@
     "Blocked by safety filters": "已被安全过滤器拦截",
     "Safety filter triggered": "已触发安全过滤器",
     "Safety warning": "安全警告",
+    "Claude and GPT models": "Claude 和 GPT 模型",
+    "Claude and GPT Models": "Claude 和 GPT 模型",
+    "Claude & GPT models": "Claude 和 GPT 模型",
+    "Claude & GPT Models": "Claude 和 GPT 模型",
+    "Gemini models": "Gemini 模型",
+    "Gemini Models": "Gemini 模型",
+    "Gemini Pro models": "Gemini Pro 模型",
+    "Gemini Flash models": "Gemini Flash 模型",
+    "Custom models": "自定义模型",
+    "Custom Models": "自定义模型",
+    "Local models": "本地模型",
+    "Local Models": "本地模型",
+    "Cloud models": "云端模型",
+    "Cloud Models": "云端模型",
+    "High-tier models": "高级模型",
+    "Standard-tier models": "标准模型",
+    "Fast-tier models": "快速模型",
+    "Thinking models": "思考模型",
+    "Reasoning models": "推理模型",
+    "Vision models": "视觉模型",
+    "Embedding models": "嵌入模型",
+    "Five-hour limit remaining": "五小时额度剩余",
+    "Five hour limit remaining": "五小时额度剩余",
+    "5-hour limit remaining": "5 小时额度剩余",
+    "5 hour limit remaining": "5 小时额度剩余",
+    "Five-hour limit": "5 小时额度",
+    "5-hour limit": "5 小时额度",
+    "Weekly limit remaining": "每周额度剩余",
+    "Weekly limit": "每周额度",
+    "Daily limit remaining": "每日额度剩余",
+    "Daily limit": "每日额度",
+    "Monthly limit remaining": "每月额度剩余",
+    "Monthly limit": "每月额度",
+    "Requests remaining": "剩余请求次数",
+    "Tokens remaining": "剩余 Token 数",
+    "Remaining quota": "剩余额度",
+    "Quota remaining": "剩余额度",
+    "Quota usage": "额度用量",
+    "Usage breakdown": "用量明细",
+    "Quota reset": "额度重置",
+    "Rate limits": "速率限制",
+    "Usage limits": "用量限制",
+    "Usage and billing": "用量与结算",
+    "Usage & Billing": "用量与结算",
+    "Billing & Plans": "结算与方案",
+    "Billing & Subscription": "结算与订阅",
+    "Current plan": "当前方案",
+    "Current Plan": "当前方案",
+    "Manage plan": "管理方案",
+    "Manage Plan": "管理方案",
+    "Upgrade plan": "升级方案",
+    "Upgrade Plan": "升级方案",
+    "All models in this group share this quota limit.": "该分组内的所有模型共享此额度限制。",
+    "All models in this group share this limit.": "该分组内的所有模型共享此限制。",
+    "Quota shared across all models in this group.": "额度由该分组内的所有模型共享。",
+    "Shared across all models in this group.": "由该分组内的所有模型共享。",
+    "Shared quota for models in this group.": "该分组内模型的共享额度。",
+    "Shared across all models in this tier.": "由该层级内的所有模型共享。",
+    "This quota applies to all models in this group.": "此额度适用于该分组内的所有模型。",
+    "This limit applies to all models in this group.": "此限制适用于该分组内的所有模型。",
+    "Attach files, folders, or rules": "附加文件、文件夹或规则",
+    "Add files to context": "将文件添加到上下文",
+    "Add images to context": "将图片添加到上下文",
+    "Add documentation to context": "将文档添加到上下文",
+    "Mention files, folders, or rules": "引用文件、文件夹或规则",
+    "Reference files with @": "使用 @ 引用文件",
+    "Run actions with /": "使用 / 执行操作",
+    "Copy message": "复制消息",
+    "Copy code": "复制代码",
+    "Copy response": "复制回复",
+    "Copy content": "复制内容",
+    "Edit message": "编辑消息",
+    "Retry message": "重试消息",
+    "Regenerate response": "重新生成回复",
+    "Stop generation": "停止生成",
+    "Cancel generation": "取消生成",
+    "Pin conversation": "置顶对话",
+    "Unpin conversation": "取消置顶对话",
+    "Delete conversation": "删除对话",
+    "Rename conversation": "重命名对话",
+    "Clear conversation": "清空对话",
+    "Export conversation": "导出对话",
+    "Share conversation": "分享对话",
+    "View details": "查看详情",
+    "Show details": "显示详情",
+    "Hide details": "隐藏详情",
+    "More information": "更多信息",
+    "Less information": "更少信息",
+    "Click to learn more": "点击了解更多",
+    "Click for details": "点击查看详情",
+    "Click to view details": "点击查看详情",
+    "Hover for details": "悬停查看详情",
+    "View documentation": "查看文档",
+    "Open documentation": "打开文档",
+    "See documentation": "查看文档",
+    "Subagent status": "子智能体状态",
+    "Task details": "任务详情",
+    "Subagent details": "子智能体详情",
+    "View subagent transcript": "查看子智能体运行记录",
+    "View task logs": "查看任务日志",
+    "View step logs": "查看步骤日志",
+    "Auto-approve terminal commands": "自动批准终端命令",
+    "Auto-approve commands": "自动批准命令",
+    "Auto-approve file changes": "自动批准文件更改",
+    "Auto-approve tool calls": "自动批准工具调用",
+    "Prompt for approval": "提示需要批准",
+    "Prompt for review": "提示需要审查",
+    "Requires approval": "需要批准",
+    "Requires review": "需要审查",
+    "Require approval for all terminal commands": "所有终端命令均需批准",
+    "Require review for all terminal commands": "所有终端命令均需审查",
+    "Allow terminal commands without review": "无需审查即可运行终端命令",
+    "Allow file reads without review": "无需审查即可读取文件",
+    "Allow file writes without review": "无需审查即可写入文件",
+    "Allow file modifications without review": "无需审查即可修改文件",
+    "Allow reading files outside workspace": "允许读取工作区外的文件",
+    "Allow writing files outside workspace": "允许写入工作区外的文件",
+    "Allow modifying files outside workspace": "允许修改工作区外的文件",
+    "Allow network access to URLs": "允许访问指定网址",
+    "Allow all URLs": "允许所有网址",
+    "Deny all URLs": "拒绝所有网址",
+    "Allow all paths": "允许所有路径",
+    "Deny all paths": "拒绝所有路径",
+    "Switch model": "切换模型",
+    "Change model": "更改模型",
+    "Default model": "默认模型",
+    "Recommended model": "推荐模型",
+    "Experimental model": "实验性模型",
+    "Preview model": "预览模型",
     "Agent settings and permissions for conversations outside of projects.": "为项目外的对话配置智能体设置和权限。",
     "Agent settings and permissions for this project.": "配置此项目的智能体设置和权限。",
     "Agent Behavior": "智能体行为",
@@ -820,6 +949,32 @@
       }
       return value.replace(trimmed, "此请求已被 Gemini 过滤器拦截。在进行安全相关的代码编写、安全测试或生物学相关查询时可能会误触发。请尝试换种方式描述您的提示词。");
     }
+    let modelGroupMatch = trimmed.match(/^Models within this group:\s*(.+)$/i);
+    if (modelGroupMatch) return value.replace(trimmed, `此分组包含的模型：${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^Models in this group:\s*(.+)$/i);
+    if (modelGroupMatch) return value.replace(trimmed, `此分组包含的模型：${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^Models included:\s*(.+)$/i);
+    if (modelGroupMatch) return value.replace(trimmed, `包含的模型：${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^Models within this tier:\s*(.+)$/i);
+    if (modelGroupMatch) return value.replace(trimmed, `此层级包含的模型：${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^Models included in this (?:group|quota|tier):\s*(.+)$/i);
+    if (modelGroupMatch) return value.replace(trimmed, `此分组包含的模型：${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^This quota applies to the following models:\s*(.+)$/i);
+    if (modelGroupMatch) return value.replace(trimmed, `此额度适用于以下模型：${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^This limit applies to the following models:\s*(.+)$/i);
+    if (modelGroupMatch) return value.replace(trimmed, `此限制适用于以下模型：${modelGroupMatch[1]}`);
+    let reqMatch = trimmed.match(/^Requests remaining:\s*(\d+)$/i);
+    if (reqMatch) return value.replace(trimmed, `剩余请求次数：${reqMatch[1]}`);
+    let tokMatch = trimmed.match(/^Tokens remaining:\s*(\d+)$/i);
+    if (tokMatch) return value.replace(trimmed, `剩余 Token 数：${tokMatch[1]}`);
+    let resetsEveryMatch = trimmed.match(/^Resets every\s+(.+)$/i);
+    if (resetsEveryMatch) return value.replace(trimmed, `每 ${translateDuration(resetsEveryMatch[1])}重置`);
+    let resetsInMatch = trimmed.match(/^Resets in\s+(.+)$/i);
+    if (resetsInMatch) return value.replace(trimmed, `将在 ${translateDuration(resetsInMatch[1])}后重置`);
+    let refreshesInMatch = trimmed.match(/^Refreshes in\s+(.+)$/i);
+    if (refreshesInMatch) return value.replace(trimmed, `将在 ${translateDuration(refreshesInMatch[1])}后刷新`);
+    let fullyRefreshesInMatch = trimmed.match(/^Fully refreshes in\s+(.+)$/i);
+    if (fullyRefreshesInMatch) return value.replace(trimmed, `将在 ${translateDuration(fullyRefreshesInMatch[1])}后完全刷新`);
     if (trimmed === "**STOP AND VERIFY**:") {
       return value.replace(trimmed, "**停止并确认**：");
     }
@@ -958,7 +1113,7 @@
     const element = node.parentElement;
     if (!element) return false;
     if (element.closest("nav,a[href]")) return false;
-    return Boolean(element.closest("[role='dialog'],[role='menu'],[role='listbox'],[role='option'],button,[aria-label],[data-tooltip-content]"));
+    return Boolean(element.closest("[role='dialog'],[role='menu'],[role='listbox'],[role='option'],[role='tooltip'],[role='status'],[role='alert'],[role='note'],[role='region'],button,[aria-label],[data-tooltip-content],[data-tooltip],[data-title],[data-radix-popper-content-wrapper],[data-floating-ui-portal],.tooltip,.popover,[popover],[data-state],[data-side]"));
   }
 
   function collectUnknown() {
@@ -1116,6 +1271,16 @@
       }
       return value.replace(trimmed, "This request was blocked by Gemini's filters. They can occasionally trigger by mistake on safe coding, security, or biology-related queries. Please try rephrasing your prompt.");
     }
+    let modelGroupMatch = trimmed.match(/^此分组包含的模型：\s*(.+)$/);
+    if (modelGroupMatch) return value.replace(trimmed, `Models within this group: ${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^包含的模型：\s*(.+)$/);
+    if (modelGroupMatch) return value.replace(trimmed, `Models included: ${modelGroupMatch[1]}`);
+    modelGroupMatch = trimmed.match(/^此层级包含的模型：\s*(.+)$/);
+    if (modelGroupMatch) return value.replace(trimmed, `Models within this tier: ${modelGroupMatch[1]}`);
+    let reqMatch = trimmed.match(/^剩余请求次数：\s*(\d+)$/);
+    if (reqMatch) return value.replace(trimmed, `Requests remaining: ${reqMatch[1]}`);
+    let tokMatch = trimmed.match(/^剩余 Token 数：\s*(\d+)$/);
+    if (tokMatch) return value.replace(trimmed, `Tokens remaining: ${tokMatch[1]}`);
     return null;
   }
 

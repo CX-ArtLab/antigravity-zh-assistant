@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.17";
+  const VERSION = "0.6.18";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -256,6 +256,39 @@
     "Queue": "排队发送",
     "Send Immediately": "立即发送",
     "Keyboard shortcuts": "键盘快捷键",
+    "Enter Queues after the turn": "Enter 当前轮次结束后排队",
+    "Alt+Enter Sends immediately": "Alt+Enter 立即发送",
+    "Alt+Enter On empty prompt, sends next in queue": "Alt+Enter 提示词为空时，发送队列中的下一条",
+    "Ctrl+Enter Sends immediately": "Ctrl+Enter 立即发送",
+    "Ctrl+Enter On empty prompt, sends next in queue": "Ctrl+Enter 提示词为空时，发送队列中的下一条",
+    "Cmd+Enter Sends immediately": "Cmd+Enter 立即发送",
+    "Cmd+Enter On empty prompt, sends next in queue": "Cmd+Enter 提示词为空时，发送队列中的下一条",
+    "Option+Enter Sends immediately": "Option+Enter 立即发送",
+    "Option+Enter On empty prompt, sends next in queue": "Option+Enter 提示词为空时，发送队列中的下一条",
+    "Shift+Enter Sends immediately": "Shift+Enter 立即发送",
+    "Shift+Enter On empty prompt, sends next in queue": "Shift+Enter 提示词为空时，发送队列中的下一条",
+    "Enter Sends immediately": "Enter 立即发送",
+    "Alt+Enter Queues after the turn": "Alt+Enter 当前轮次结束后排队",
+    "Ctrl+Enter Queues after the turn": "Ctrl+Enter 当前轮次结束后排队",
+    "Cmd+Enter Queues after the turn": "Cmd+Enter 当前轮次结束后排队",
+    "Option+Enter Queues after the turn": "Option+Enter 当前轮次结束后排队",
+    "Shift+Enter Queues after the turn": "Shift+Enter 当前轮次结束后排队",
+    "Enter On empty prompt, sends next in queue": "Enter 提示词为空时，发送队列中的下一条",
+    "Queues after the turn": "当前轮次结束后排队",
+    "Sends immediately": "立即发送",
+    "On empty prompt, sends next in queue": "提示词为空时，发送队列中的下一条",
+    "On empty prompt, sends next in queue.": "提示词为空时，发送队列中的下一条。",
+    "Press Enter to send": "按 Enter 发送",
+    "Press Shift+Enter for new line": "按 Shift+Enter 换行",
+    "Press Ctrl+Enter to send": "按 Ctrl+Enter 发送",
+    "Press Cmd+Enter to send": "按 Cmd+Enter 发送",
+    "Shift+Enter for new line": "Shift+Enter 换行",
+    "Enter to send": "Enter 发送",
+    "Enter to select": "Enter 选择",
+    "Tab to complete": "Tab 补全",
+    "Esc to cancel": "Esc 取消",
+    "Esc to close": "Esc 关闭",
+    "Esc to dismiss": "Esc 关闭",
     "Agent Settings": "智能体设置",
     "Security Preset": "安全预设",
     "Security Presets": "安全预设",
@@ -975,6 +1008,40 @@
     if (refreshesInMatch) return value.replace(trimmed, `将在 ${translateDuration(refreshesInMatch[1])}后刷新`);
     let fullyRefreshesInMatch = trimmed.match(/^Fully refreshes in\s+(.+)$/i);
     if (fullyRefreshesInMatch) return value.replace(trimmed, `将在 ${translateDuration(fullyRefreshesInMatch[1])}后完全刷新`);
+    let shortcutMatch = trimmed.match(/^((?:(?:Ctrl|Alt|Cmd|Option|Shift|Enter|\+)\s*)+)\s+(Queues after the turn|Sends immediately|On empty prompt,\s*sends next in queue)$/i);
+    if (shortcutMatch) {
+      const key = shortcutMatch[1].trim();
+      const action = shortcutMatch[2].trim().toLowerCase();
+      let actionZh = "立即发送";
+      if (action.includes("queues after the turn")) actionZh = "当前轮次结束后排队";
+      else if (action.includes("on empty prompt")) actionZh = "提示词为空时，发送队列中的下一条";
+      return value.replace(trimmed, `${key} ${actionZh}`);
+    }
+    let pressMatch = trimmed.match(/^Press\s+([A-Za-z0-9+]+)\s+to\s+(.+)$/i);
+    if (pressMatch) {
+      const key = pressMatch[1];
+      const act = pressMatch[2].toLowerCase();
+      let actZh = act;
+      if (act === "send") actZh = "发送";
+      else if (act === "cancel") actZh = "取消";
+      else if (act === "close") actZh = "关闭";
+      else if (act === "select") actZh = "选择";
+      else if (act === "continue") actZh = "继续";
+      return value.replace(trimmed, `按 ${key} ${actZh}`);
+    }
+    let keyToMatch = trimmed.match(/^([A-Za-z0-9+]+)\s+to\s+(.+)$/i);
+    if (keyToMatch && ["Enter", "Tab", "Esc", "Shift+Enter", "Ctrl+Enter", "Cmd+Enter", "Alt+Enter"].includes(keyToMatch[1])) {
+      const key = keyToMatch[1];
+      const act = keyToMatch[2].toLowerCase();
+      let actZh = act;
+      if (act === "send") actZh = "发送";
+      else if (act === "new line" || act === "insert new line") actZh = "换行";
+      else if (act === "complete") actZh = "补全";
+      else if (act === "cancel") actZh = "取消";
+      else if (act === "close") actZh = "关闭";
+      else if (act === "select") actZh = "选择";
+      return value.replace(trimmed, `${key} ${actZh}`);
+    }
     if (trimmed === "**STOP AND VERIFY**:") {
       return value.replace(trimmed, "**停止并确认**：");
     }
@@ -1281,6 +1348,15 @@
     if (reqMatch) return value.replace(trimmed, `Requests remaining: ${reqMatch[1]}`);
     let tokMatch = trimmed.match(/^剩余 Token 数：\s*(\d+)$/);
     if (tokMatch) return value.replace(trimmed, `Tokens remaining: ${tokMatch[1]}`);
+    let shortcutMatch = trimmed.match(/^((?:(?:Ctrl|Alt|Cmd|Option|Shift|Enter|\+)\s*)+)\s+(当前轮次结束后排队|立即发送|提示词为空时，发送队列中的下一条)$/);
+    if (shortcutMatch) {
+      const key = shortcutMatch[1].trim();
+      const action = shortcutMatch[2].trim();
+      let actionEn = "Sends immediately";
+      if (action.includes("当前轮次结束后排队")) actionEn = "Queues after the turn";
+      else if (action.includes("提示词为空时")) actionEn = "On empty prompt, sends next in queue";
+      return value.replace(trimmed, `${key} ${actionEn}`);
+    }
     return null;
   }
 

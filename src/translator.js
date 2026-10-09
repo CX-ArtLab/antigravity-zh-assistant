@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.19";
+  const VERSION = "0.6.20";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -192,6 +192,19 @@
     "No more older messages": "没有更早的消息",
     "Plan": "计划",
     "Review": "审查",
+    "Review changes": "审查更改",
+    "Changes": "更改",
+    "File changes": "文件更改",
+    "No changes": "暂无更改",
+    "No file changes": "暂无文件更改",
+    "No changes to review": "暂无待审查更改",
+    "Staged Changes": "暂存的更改",
+    "Unstaged Changes": "未暂存的更改",
+    "Staged": "已暂存",
+    "Unstaged": "未暂存",
+    "Uncommitted": "未提交",
+    "Commit": "提交",
+    "Commits": "提交",
     "Accept": "接受",
     "Reject": "拒绝",
     "Waiting for user input...": "等待用户确认……",
@@ -649,7 +662,12 @@
     "pre",
     "code",
     "[contenteditable='true']",
-    "[role='textbox']"
+    "[role='textbox']",
+    ".code-line",
+    "[data-file-uri]",
+    "[data-diff-type]",
+    "[data-line-start]",
+    ".token"
   ].join(",");
 
   // Skill descriptions are located by their stable technical identifiers.
@@ -1212,7 +1230,8 @@
     const element = node.parentElement;
     if (!element) return false;
     if (element.closest("nav,a[href]")) return false;
-    return Boolean(element.closest("[role='dialog'],[role='menu'],[role='listbox'],[role='option'],[role='tooltip'],[role='status'],[role='alert'],[role='note'],[role='region'],button,[aria-label],[data-tooltip-content],[data-tooltip],[data-title],[data-radix-popper-content-wrapper],[data-floating-ui-portal],.tooltip,.popover,[popover],[data-state],[data-side]"));
+    if (element.closest("[data-file-uri],[data-diff-type],[data-line-start],.code-line,.token")) return false;
+    return Boolean(element.closest("[role='dialog'],[role='menu'],[role='listbox'],[role='option'],[role='tooltip'],[role='status'],[role='alert'],[role='note'],[role='region'],button,[aria-label],[data-tooltip-content],[data-tooltip],[data-title],[data-radix-popper-content-wrapper],[data-floating-ui-portal],.tooltip,.popover,[popover],[data-state]"));
   }
 
   function collectUnknown() {
@@ -1239,7 +1258,7 @@
       if (/^Send feedback as /i.test(text)) continue;
       const element = node.parentElement;
       if (!element || typeof element.closest !== "function") continue;
-      if (element.closest("[data-conversation-id],[data-cascade-id],[data-project-card],[data-quotable],[data-base-ui-portal],[data-testid*='conversation'],[data-testid*='chat-item'],[data-testid*='breadcrumb'],[data-testid*='context-menu'],[data-testid*='workspace'],[data-testid*='file'],[data-testid*='project'],[data-testid*='history'],[role='article'],.conversation-title,.chat-title,.workspace-title,.project-title,.file-name,.file-tree-item")) continue;
+      if (element.closest("[data-file-uri],[data-diff-type],[data-line-start],.code-line,.token,[data-conversation-id],[data-cascade-id],[data-project-card],[data-quotable],[data-base-ui-portal],[data-testid*='conversation'],[data-testid*='chat-item'],[data-testid*='breadcrumb'],[data-testid*='context-menu'],[data-testid*='workspace'],[data-testid*='file'],[data-testid*='project'],[data-testid*='history'],[role='article'],.conversation-title,.chat-title,.workspace-title,.project-title,.file-name,.file-tree-item")) continue;
       if (/^(?:git|npm|npx|pnpm|yarn|cargo|python|pip|powershell|bash|sh|cmd|curl|wget|dir|ls|cat)\s+/i.test(text)) continue;
       if (Object.prototype.hasOwnProperty.call(skillSummaries, text)) continue;
       if (["Antigravity", "Alt", "Ctrl", "Shift", "Tab", "Google AI Pro", "Google Chrome", "Google3", "notebooks", "visualization", "Previewing Local Project", "Running Application Locally", "Setting Language to Chinese"].includes(text)) continue;

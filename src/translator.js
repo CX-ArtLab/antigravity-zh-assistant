@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.20";
+  const VERSION = "0.6.21";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -38,6 +38,8 @@
     "No conversations yet": "暂无对话",
     "Idle": "就绪",
     "Notice": "提示",
+    "Leaving Soon": "即将下线",
+    "Leaving soon": "即将下线",
     "Unread": "未读",
     "View Usage": "查看用量",
     "View usage": "查看用量",
@@ -1177,6 +1179,13 @@
         `${noticeMatch[1]} 现已在付费 Pro 和 Ultra 方案中提供。自 ${translateDate(noticeMatch[2]) || noticeMatch[2]} 起，您当前的方案将无法再使用第三方模型。`
       );
     }
+    let modelRecMatch = trimmed.match(/^Use (.+?)!\s*As a newer model,\s*it delivers more intelligence at (\d+x?) the speed for (\d+%) less cost than (.+?)\.?$/i);
+    if (modelRecMatch) {
+      return value.replace(
+        trimmed,
+        `请使用 ${modelRecMatch[1]}！作为更新的模型，它的智能程度更高，速度提升 ${modelRecMatch[2]}，且成本比 ${modelRecMatch[4]} 降低 ${modelRecMatch[3]}。`
+      );
+    }
     let updatedMatch = trimmed.match(/^Updated\s+(.+)$/i);
     if (updatedMatch) return value.replace(trimmed, `已更新于 ${updatedMatch[1]}`);
     if (AUTO_ADAPT) {
@@ -1414,6 +1423,10 @@
     let noticeRestoreMatch = trimmed.match(/^(.+?)\s*现已在付费 Pro 和 Ultra 方案中提供。自\s*(.+?)\s*起，您当前的方案将无法再使用第三方模型。$/);
     if (noticeRestoreMatch) {
       return value.replace(trimmed, `${noticeRestoreMatch[1]} is now available on paid Pro and Ultra plans. Third-party model access will no longer be available on your current plan starting on ${noticeRestoreMatch[2]}.`);
+    }
+    let modelRecRestore = trimmed.match(/^请使用 (.+?)！作为更新的模型，它的智能程度更高，速度提升 (.+?)，且成本比 (.+?) 降低 (.+?)。$/);
+    if (modelRecRestore) {
+      return value.replace(trimmed, `Use ${modelRecRestore[1]}! As a newer model, it delivers more intelligence at ${modelRecRestore[2]} the speed for ${modelRecRestore[4]} less cost than ${modelRecRestore[3]}.`);
     }
     let updatedRestoreMatch = trimmed.match(/^已更新于\s+(.+)$/);
     if (updatedRestoreMatch) return value.replace(trimmed, `Updated ${updatedRestoreMatch[1]}`);

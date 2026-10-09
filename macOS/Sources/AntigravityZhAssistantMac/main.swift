@@ -4,7 +4,7 @@ import Foundation
 import Darwin
 
 private let appName = "Antigravity 中文助手"
-private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.20"
+private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.21"
 private let manifestURL = URL(string: "https://raw.githubusercontent.com/CX-ARTLab/antigravity-zh-assistant/main/translation/manifest.json")!
 
 private func assistantIconImage() -> NSImage {

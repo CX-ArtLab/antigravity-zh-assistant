@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.18";
+  const VERSION = "0.6.19";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -23,6 +23,7 @@
     "New Conversation": "新建对话",
     "Conversation History": "对话历史",
     "Scheduled Tasks": "定时任务",
+    "Automations": "自动化",
     "Projects": "项目",
     "Project": "项目",
     "CLI Project": "CLI 项目",
@@ -35,6 +36,11 @@
     "Project options": "项目选项",
     "New Conversation in Project": "在项目中新建对话",
     "No conversations yet": "暂无对话",
+    "Idle": "就绪",
+    "Notice": "提示",
+    "Unread": "未读",
+    "View Usage": "查看用量",
+    "View usage": "查看用量",
     "Settings": "设置",
     "Open IDE": "打开 IDE",
     "Message input": "消息输入框",
@@ -806,6 +812,23 @@
       .trim();
   }
 
+  const englishMonths = {
+    January: "1", February: "2", March: "3", April: "4",
+    May: "5", June: "6", July: "7", August: "8",
+    September: "9", October: "10", November: "11", December: "12",
+    Jan: "1", Feb: "2", Mar: "3", Apr: "4", Jun: "6",
+    Jul: "7", Aug: "8", Sep: "9", Oct: "10", Nov: "11", Dec: "12"
+  };
+
+  function translateDate(str) {
+    if (!str) return "";
+    let s = str.trim();
+    return s.replace(/\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/gi, (_, m, d, y) => {
+      const monthNum = englishMonths[m.charAt(0).toUpperCase() + m.slice(1).toLowerCase()] || m;
+      return `${y} 年 ${monthNum} 月 ${d} 日`;
+    });
+  }
+
   function translateLimitName(str) {
     const s = (str || "").trim().toLowerCase();
     if (s === "5-hour" || s === "5 hour" || s === "five hour" || s === "5-hours" || s === "5 hours") return "5 小时";
@@ -932,14 +955,14 @@
     if (baselineMatch) {
       return value.replace(
         trimmed,
-        `您方案的基础额度将在 ${baselineMatch[1]} 刷新。若要立即继续使用此模型，请开启使用 AI 超额点数。`
+        `您方案的基础额度将在 ${translateDate(baselineMatch[1]) || baselineMatch[1]} 刷新。若要立即继续使用此模型，请开启使用 AI 超额点数。`
       );
     }
     baselineMatch = trimmed.match(/^Your plan's baseline quota will refresh on (.+?)\.$/i);
     if (baselineMatch) {
       return value.replace(
         trimmed,
-        `您方案的基础额度将在 ${baselineMatch[1]} 刷新。`
+        `您方案的基础额度将在 ${translateDate(baselineMatch[1]) || baselineMatch[1]} 刷新。`
       );
     }
     let quotaMatch = trimmed.match(/^You have used some of your weekly limit, it will fully refresh in (.+)\.$/i);
@@ -1129,6 +1152,15 @@
     if (match) return value.replace(trimmed, `再显示 ${match[1]} 项……`);
     match = trimmed.match(/^(\d+(?:\.\d+)?)% of the customization budget is available\.$/);
     if (match) return value.replace(trimmed, `自定义内容预算还剩 ${match[1]}%。`);
+    let noticeMatch = trimmed.match(/^(.+?)\s+is now available on paid Pro and Ultra plans\.\s*Third-party model access will no longer be available on your current plan starting on\s+(.+?)\.?$/i);
+    if (noticeMatch) {
+      return value.replace(
+        trimmed,
+        `${noticeMatch[1]} 现已在付费 Pro 和 Ultra 方案中提供。自 ${translateDate(noticeMatch[2]) || noticeMatch[2]} 起，您当前的方案将无法再使用第三方模型。`
+      );
+    }
+    let updatedMatch = trimmed.match(/^Updated\s+(.+)$/i);
+    if (updatedMatch) return value.replace(trimmed, `已更新于 ${updatedMatch[1]}`);
     if (AUTO_ADAPT) {
       const composed = translateComposed(trimmed);
       if (composed) return value.replace(trimmed, composed);
@@ -1193,7 +1225,10 @@
       if (text.length < 2 || text.length > 180 || !/[A-Za-z]{2}/.test(text)) continue;
       if (/[\u3400-\u9fff]/.test(text)) continue;
       if (/https?:|\\|\/Users\/|[{}<>]|^[A-Za-z]:/.test(text)) continue;
-      if (/\.(?:cs|csproj|sln|json|js|ts|tsx|jsx|zip|png|jpg|jpeg|gif|svg|md|txt|log)$/i.test(text)) continue;
+      if (/^\.[a-zA-Z0-9._-]+$/.test(text)) continue;
+      if (/\.(?:cs|csproj|sln|json|js|ts|tsx|jsx|zip|png|jpg|jpeg|gif|svg|ico|md|txt|log|plist|swift|sh|yml|yaml|toml|lock|bak|tmp|env)$/i.test(text)) continue;
+      if (/^(?:LICENSE|LICENCE|README|CHANGELOG|Makefile|Dockerfile|Gemfile|Procfile)$/i.test(text)) continue;
+      if (/^(?:Resources|Sources|macOS|bin|dist|node_modules|obj|target|build|public|assets)$/i.test(text)) continue;
       if (/^(?:Implementation Plan|Google Antigravity Current UI Design)$/i.test(text)) continue;
       if (/^\/\//.test(text)) continue;
       if (/^[a-z_$][a-z0-9_$]*(?:\.[a-z_$][a-z0-9_$]*)*[),;]?$/i.test(text) && text === text.toLowerCase()) continue;
@@ -1204,7 +1239,7 @@
       if (/^Send feedback as /i.test(text)) continue;
       const element = node.parentElement;
       if (!element || typeof element.closest !== "function") continue;
-      if (element.closest("[data-conversation-id],[data-testid*='conversation'],[data-testid*='chat-item'],.conversation-title,.chat-title")) continue;
+      if (element.closest("[data-conversation-id],[data-cascade-id],[data-project-card],[data-quotable],[data-base-ui-portal],[data-testid*='conversation'],[data-testid*='chat-item'],[data-testid*='breadcrumb'],[data-testid*='context-menu'],[data-testid*='workspace'],[data-testid*='file'],[data-testid*='project'],[data-testid*='history'],[role='article'],.conversation-title,.chat-title,.workspace-title,.project-title,.file-name,.file-tree-item")) continue;
       if (/^(?:git|npm|npx|pnpm|yarn|cargo|python|pip|powershell|bash|sh|cmd|curl|wget|dir|ls|cat)\s+/i.test(text)) continue;
       if (Object.prototype.hasOwnProperty.call(skillSummaries, text)) continue;
       if (["Antigravity", "Alt", "Ctrl", "Shift", "Tab", "Google AI Pro", "Google Chrome", "Google3", "notebooks", "visualization", "Previewing Local Project", "Running Application Locally", "Setting Language to Chinese"].includes(text)) continue;
@@ -1357,6 +1392,12 @@
       else if (action.includes("提示词为空时")) actionEn = "On empty prompt, sends next in queue";
       return value.replace(trimmed, `${key} ${actionEn}`);
     }
+    let noticeRestoreMatch = trimmed.match(/^(.+?)\s*现已在付费 Pro 和 Ultra 方案中提供。自\s*(.+?)\s*起，您当前的方案将无法再使用第三方模型。$/);
+    if (noticeRestoreMatch) {
+      return value.replace(trimmed, `${noticeRestoreMatch[1]} is now available on paid Pro and Ultra plans. Third-party model access will no longer be available on your current plan starting on ${noticeRestoreMatch[2]}.`);
+    }
+    let updatedRestoreMatch = trimmed.match(/^已更新于\s+(.+)$/);
+    if (updatedRestoreMatch) return value.replace(trimmed, `Updated ${updatedRestoreMatch[1]}`);
     return null;
   }
 

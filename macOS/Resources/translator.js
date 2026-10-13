@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.21";
+  const VERSION = "0.6.22";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -224,6 +224,11 @@
     "Ask every time": "每次询问",
     "Full machine": "整台电脑",
     "Turbo mode": "极速模式",
+    "Turbo": "极速",
+    "Every command requires approval.": "所有命令均需批准。",
+    "Ask before sensitive operations.": "执行敏感操作前先询问。",
+    "Run all commands without restrictions.": "不受限制地运行所有命令。",
+    "all commands without restrictions.": "不受限制地运行所有命令。",
     "Custom": "自定义",
     "Unrestricted": "不受限制",
     "Sign in": "登录",
@@ -420,6 +425,7 @@
     "Shared across all models in this tier.": "由该层级内的所有模型共享。",
     "This quota applies to all models in this group.": "此额度适用于该分组内的所有模型。",
     "This limit applies to all models in this group.": "此限制适用于该分组内的所有模型。",
+    "Within each group, models share a weekly limit and a 5-hour limit. Quota is consumed proportionally to the cost of the tokens. Thus, limits will last longer with shorter tasks or using more cost-effective models. The 5-hour limit smooths out aggregate demand to fairly distribute global capacity across all users, while your weekly limit is tied directly to your individual tier.": "在各个分组内，模型共享每周额度与 5 小时额度。额度会按照 Token 成本按比例消耗。因此，任务更短或使用更高性价比的模型能让额度维持更久。5 小时额度用于平滑总体需求以在所有用户间公平分配全球算力，而每周额度则直接与您的个人会员级别绑定。",
     "Attach files, folders, or rules": "附加文件、文件夹或规则",
     "Add files to context": "将文件添加到上下文",
     "Add images to context": "将图片添加到上下文",
@@ -936,8 +942,8 @@
     if (quotaErrMatch) return value.replace(trimmed, `已达到个人额度上限。请升级订阅以提升额度限制。将在 ${translateDuration(quotaErrMatch[1])}后重置。`);
     quotaErrMatch = trimmed.match(/^Individual quota reached\.\s*Resets in (.+?)\.?$/i);
     if (quotaErrMatch) return value.replace(trimmed, `已达到个人额度上限。将在 ${translateDuration(quotaErrMatch[1])}后重置。`);
-    approvalMatch = trimmed.match(/^Run (.+)$/s);
-    if (approvalMatch) return value.replace(trimmed, `运行 ${approvalMatch[1]}`);
+    approvalMatch = trimmed.match(/^Run\s+([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)*|[a-z]+:[^\s]+)$/s);
+    if (approvalMatch && !trimmed.startsWith("Run all commands")) return value.replace(trimmed, `运行 ${approvalMatch[1]}`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)' in this conversation$/s);
     if (approvalMatch) return value.replace(trimmed, `是，并在本次对话中始终允许“${approvalMatch[1]}”`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)' when not in a project$/s);
@@ -1177,6 +1183,13 @@
       return value.replace(
         trimmed,
         `${noticeMatch[1]} 现已在付费 Pro 和 Ultra 方案中提供。自 ${translateDate(noticeMatch[2]) || noticeMatch[2]} 起，您当前的方案将无法再使用第三方模型。`
+      );
+    }
+    let removalMatch = trimmed.match(/^(.+?)\s+will be removed from Antigravity on\s+(.+?)\.?$/i);
+    if (removalMatch) {
+      return value.replace(
+        trimmed,
+        `${removalMatch[1]} 将于 ${translateDate(removalMatch[2]) || removalMatch[2]} 从 Antigravity 中下线。`
       );
     }
     let modelRecMatch = trimmed.match(/^Use (.+?)!\s*As a newer model,\s*it delivers more intelligence at (\d+x?) the speed for (\d+%) less cost than (.+?)\.?$/i);
@@ -1423,6 +1436,10 @@
     let noticeRestoreMatch = trimmed.match(/^(.+?)\s*现已在付费 Pro 和 Ultra 方案中提供。自\s*(.+?)\s*起，您当前的方案将无法再使用第三方模型。$/);
     if (noticeRestoreMatch) {
       return value.replace(trimmed, `${noticeRestoreMatch[1]} is now available on paid Pro and Ultra plans. Third-party model access will no longer be available on your current plan starting on ${noticeRestoreMatch[2]}.`);
+    }
+    let removalRestoreMatch = trimmed.match(/^(.+?)\s*将于\s*(.+?)\s*从 Antigravity 中下线。$/);
+    if (removalRestoreMatch) {
+      return value.replace(trimmed, `${removalRestoreMatch[1]} will be removed from Antigravity on ${removalRestoreMatch[2]}.`);
     }
     let modelRecRestore = trimmed.match(/^请使用 (.+?)！作为更新的模型，它的智能程度更高，速度提升 (.+?)，且成本比 (.+?) 降低 (.+?)。$/);
     if (modelRecRestore) {

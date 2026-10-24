@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.23";
+  const VERSION = "0.6.24";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -36,6 +36,11 @@
     "Project options": "项目选项",
     "New Conversation in Project": "在项目中新建对话",
     "No conversations yet": "暂无对话",
+    "Overview": "概览",
+    "Working": "处理中",
+    "just now": "刚刚",
+    "Empty message": "空白消息",
+    "Sends after agent finishes working": "智能体处理完毕后发送",
     "Idle": "就绪",
     "Notice": "提示",
     "Leaving Soon": "即将下线",
@@ -956,6 +961,8 @@
     if (approvalMatch) return value.replace(trimmed, `是，并在不属于项目时始终允许“${approvalMatch[1]}”`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)'$/s);
     if (approvalMatch) return value.replace(trimmed, `是，始终允许“${approvalMatch[1]}”`);
+    let readingMatch = trimmed.match(/^Reading\s+([A-Za-z0-9_.-]+(?:\s+[A-Za-z0-9_.-]+)*|[a-z]+:[^\s]+)$/);
+    if (readingMatch) return value.replace(trimmed, `正在读取 ${readingMatch[1]}`);
     let allowQuestionMatch = trimmed.match(/^Allow (.+?)\?$/);
     if (allowQuestionMatch) return value.replace(trimmed, `允许 ${allowQuestionMatch[1]} 吗？`);
     approvalMatch = trimmed.match(/^(\d+) files? changed$/);
@@ -1459,6 +1466,8 @@
     if (allowQuestionRestore) return value.replace(trimmed, `Allow ${allowQuestionRestore[1]}?`);
     let projectRestore = trimmed.match(/^是，并在当前项目中始终允许“(.+?)”$/);
     if (projectRestore) return value.replace(trimmed, `Yes, and always allow '${projectRestore[1]}' in this project`);
+    let readingRestore = trimmed.match(/^正在读取\s+(.+)$/);
+    if (readingRestore) return value.replace(trimmed, `Reading ${readingRestore[1]}`);
     return null;
   }
 

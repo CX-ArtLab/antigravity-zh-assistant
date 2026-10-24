@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.25";
+  const VERSION = "0.6.26";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1041,6 +1041,27 @@
       const targetTrans = translateExact(target) || dictionary[target] || extraDictionary[target] || target;
       return value.replace(trimmed, `了解更多：${targetTrans}`);
     }
+    let creditsMatch = trimmed.match(/^Available AI Credits:\s*(.+)$/i);
+    if (creditsMatch) return value.replace(trimmed, `可用 AI 点数：${creditsMatch[1]}`);
+    let convCountMatch = trimmed.match(/^(\d+)\s+active\s+conversations?$/i);
+    if (convCountMatch) return value.replace(trimmed, `${convCountMatch[1]} 个活跃对话`);
+    convCountMatch = trimmed.match(/^(\d+)\s+archived\s+conversations?$/i);
+    if (convCountMatch) return value.replace(trimmed, `${convCountMatch[1]} 个归档对话`);
+    convCountMatch = trimmed.match(/^(\d+)\s+active\s+conversations?\s+and\s+(\d+)\s+archived\s+conversations?$/i);
+    if (convCountMatch) return value.replace(trimmed, `${convCountMatch[1]} 个活跃对话与 ${convCountMatch[2]} 个归档对话`);
+    let deleteMatch = trimmed.match(/^Permanently delete\s+(.+?)\s+including\s+(\d+)\s+active\s+conversations?\.?$/i);
+    if (deleteMatch) return value.replace(trimmed, `永久删除 ${deleteMatch[1]}，包括 ${deleteMatch[2]} 个活跃对话。`);
+    deleteMatch = trimmed.match(/^Permanently delete\s+(.+?)\s+including\s+(\d+)\s+archived\s+conversations?\.?$/i);
+    if (deleteMatch) return value.replace(trimmed, `永久删除 ${deleteMatch[1]}，包括 ${deleteMatch[2]} 个归档对话。`);
+    deleteMatch = trimmed.match(/^Permanently delete\s+(.+?)\s+including\s+(\d+)\s+active\s+conversations?\s+and\s+(\d+)\s+archived\s+conversations?\.?$/i);
+    if (deleteMatch) return value.replace(trimmed, `永久删除 ${deleteMatch[1]}，包括 ${deleteMatch[2]} 个活跃对话与 ${deleteMatch[3]} 个归档对话。`);
+    deleteMatch = trimmed.match(/^Permanently delete\s+(.+?)\.?$/i);
+    if (deleteMatch) return value.replace(trimmed, `永久删除 ${deleteMatch[1]}。`);
+    let workingInMatch = trimmed.match(/^when working\s+(in these conversations|in this project)\.?$/i);
+    if (workingInMatch) {
+      const isConv = workingInMatch[1].toLowerCase().includes("conversation");
+      return value.replace(trimmed, isConv ? "（在此类对话中）。" : "（在此项目中）。");
+    }
     if (trimmed.startsWith("A high-risk mode that disables all safety barriers")) {
       return value.replace(trimmed, "一种高风险模式，会禁用所有安全防护措施。智能体将拥有完全的系统访问权限，自动执行所有终端命令，并在无需审查提示的情况下读取或写入所有本地文件。");
     }
@@ -1484,6 +1505,24 @@
     if (projectRestore) return value.replace(trimmed, `Yes, and always allow '${projectRestore[1]}' in this project`);
     let readingRestore = trimmed.match(/^正在读取\s+(.+)$/);
     if (readingRestore) return value.replace(trimmed, `Reading ${readingRestore[1]}`);
+    let creditsRestore = trimmed.match(/^可用 AI 点数：\s*(.+)$/);
+    if (creditsRestore) return value.replace(trimmed, `Available AI Credits: ${creditsRestore[1]}`);
+    let convCountRestore = trimmed.match(/^(\d+)\s+个活跃对话$/);
+    if (convCountRestore) return value.replace(trimmed, `${convCountRestore[1]} active conversation${convCountRestore[1] === "1" ? "" : "s"}`);
+    convCountRestore = trimmed.match(/^(\d+)\s+个归档对话$/);
+    if (convCountRestore) return value.replace(trimmed, `${convCountRestore[1]} archived conversation${convCountRestore[1] === "1" ? "" : "s"}`);
+    convCountRestore = trimmed.match(/^(\d+)\s+个活跃对话与\s+(\d+)\s+个归档对话$/);
+    if (convCountRestore) return value.replace(trimmed, `${convCountRestore[1]} active conversation${convCountRestore[1] === "1" ? "" : "s"} and ${convCountRestore[2]} archived conversation${convCountRestore[2] === "1" ? "" : "s"}`);
+    let deleteRestore = trimmed.match(/^永久删除\s+(.+?)，包括\s+(\d+)\s+个活跃对话。?$/);
+    if (deleteRestore) return value.replace(trimmed, `Permanently delete ${deleteRestore[1]} including ${deleteRestore[2]} active conversation${deleteRestore[2] === "1" ? "" : "s"}.`);
+    deleteRestore = trimmed.match(/^永久删除\s+(.+?)，包括\s+(\d+)\s+个归档对话。?$/);
+    if (deleteRestore) return value.replace(trimmed, `Permanently delete ${deleteRestore[1]} including ${deleteRestore[2]} archived conversation${deleteRestore[2] === "1" ? "" : "s"}.`);
+    deleteRestore = trimmed.match(/^永久删除\s+(.+?)，包括\s+(\d+)\s+个活跃对话与\s+(\d+)\s+个归档对话。?$/);
+    if (deleteRestore) return value.replace(trimmed, `Permanently delete ${deleteRestore[1]} including ${deleteRestore[2]} active conversation${deleteRestore[2] === "1" ? "" : "s"} and ${deleteRestore[3]} archived conversation${deleteRestore[3] === "1" ? "" : "s"}.`);
+    deleteRestore = trimmed.match(/^永久删除\s+(.+?)。?$/);
+    if (deleteRestore) return value.replace(trimmed, `Permanently delete ${deleteRestore[1]}.`);
+    if (trimmed === "（在此类对话中）。") return value.replace(trimmed, "when working in these conversations.");
+    if (trimmed === "（在此项目中）。") return value.replace(trimmed, "when working in this project.");
     return null;
   }
 

@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.24";
+  const VERSION = "0.6.25";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -521,6 +521,18 @@
     "Commands Outside Sandbox": "沙箱外命令",
     "Configure allowed commands outside the sandbox.": "配置允许在沙箱外执行的命令。",
     "Local Permissions": "本地权限",
+    "Configure global allowed and denied resource permissions.": "配置全局允许和禁止的资源权限。",
+    "Manage your notification preferences.": "管理您的通知偏好设置。",
+    "Enable Notifications for Agent": "启用智能体通知",
+    "Show system notifications when your action is needed or the agent finishes.": "当需要您处理或智能体完成时显示系统通知。",
+    "Sound": "声音",
+    "Enable Sounds for Agent": "启用智能体提示音",
+    "Play a sound when your action is needed or the agent finishes.": "当需要您处理或智能体完成时播放提示音。",
+    "Volume": "音量",
+    "Set the volume of agent sounds.": "设置智能体提示音的音量。",
+    "global permissions": "全局权限",
+    "Global Permissions": "全局权限",
+    "when working in these conversations.": "。",
     "Also includes": "还会应用",
     "global settings": "全局设置",
     "when working in this project.": "。",
@@ -752,6 +764,7 @@
     "generative_ui": "在对话内或独立工件中渲染丰富的交互式 HTML 微件、图表、数据可视化与教育引导。",
     "migrate-workflows": "自动将旧版工作流迁移为全局或工作区标准技能，安全归档旧工作流文件。",
     "permissioned-github": "与 GitHub 进行交互的操作规范；当命令因智能体环境限制而失败时向用户请求权限。",
+    "run-workflow": "编写并运行动态工作流脚本，通过 Python 脚本和 agent、parallel、pipeline、phase 等机制协调多个智能体协作。",
     "plugin": "管理和创建插件（包含技能、智能体、规则、MCP 服务器及钩子的命名空间包，支持整体安装、启用与禁用）。",
     "ponytail": "采用极简、高效、无冗余的资深工程师方案，优先运用标准库与平台原生能力，拒绝过度工程化。",
     "ponytail-audit": "对整个代码库进行过度工程化审计，列出可删除、简化或用标准库/原生功能替代的建议清单。",
@@ -1141,6 +1154,9 @@
     }
     if (trimmed.startsWith("Guidelines for interacting with GitHub; prompts user for permissions")) {
       return value.replace(trimmed, "与 GitHub 进行交互的操作规范；当命令因智能体环境限制而失败时向用户请求权限。");
+    }
+    if (trimmed.startsWith("How to write and run a dynamic workflow script with the `run_workflow` tool")) {
+      return value.replace(trimmed, "编写并运行动态工作流脚本，通过 Python 脚本和 agent、parallel、pipeline、phase 等机制协调多个智能体协作。");
     }
     if (trimmed.startsWith("Manage and create plugins (namespaced packages containing skills")) {
       return value.replace(trimmed, "管理和创建插件（包含技能、智能体、规则、MCP 服务器及钩子的命名空间包，支持整体安装、启用与禁用）。");

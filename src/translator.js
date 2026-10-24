@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.22";
+  const VERSION = "0.6.23";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -78,6 +78,8 @@
     "Light": "浅色",
     "Dark": "深色",
     "Browser": "浏览器",
+    "Extensions": "扩展",
+    "Background Tasks": "后台任务",
     "Skills": "技能",
     "Prompts": "提示词",
     "MCP Servers": "MCP 服务器",
@@ -175,6 +177,8 @@
     "Yesterday": "昨天",
     "Show more": "显示更多",
     "Show less": "收起",
+    "Show all": "显示全部",
+    "See all": "查看全部",
     "Expand": "展开",
     "Collapse": "折叠",
     "Details": "详情",
@@ -946,10 +950,14 @@
     if (approvalMatch && !trimmed.startsWith("Run all commands")) return value.replace(trimmed, `运行 ${approvalMatch[1]}`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)' in this conversation$/s);
     if (approvalMatch) return value.replace(trimmed, `是，并在本次对话中始终允许“${approvalMatch[1]}”`);
+    approvalMatch = trimmed.match(/^Yes, and always allow '(.+)' in this project$/s);
+    if (approvalMatch) return value.replace(trimmed, `是，并在当前项目中始终允许“${approvalMatch[1]}”`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)' when not in a project$/s);
     if (approvalMatch) return value.replace(trimmed, `是，并在不属于项目时始终允许“${approvalMatch[1]}”`);
     approvalMatch = trimmed.match(/^Yes, and always allow '(.+)'$/s);
     if (approvalMatch) return value.replace(trimmed, `是，始终允许“${approvalMatch[1]}”`);
+    let allowQuestionMatch = trimmed.match(/^Allow (.+?)\?$/);
+    if (allowQuestionMatch) return value.replace(trimmed, `允许 ${allowQuestionMatch[1]} 吗？`);
     approvalMatch = trimmed.match(/^(\d+) files? changed$/);
     if (approvalMatch) return value.replace(trimmed, `${approvalMatch[1]} 个文件已更改`);
     approvalMatch = trimmed.match(/^Media \(Today (.+)\)$/);
@@ -1447,6 +1455,10 @@
     }
     let updatedRestoreMatch = trimmed.match(/^已更新于\s+(.+)$/);
     if (updatedRestoreMatch) return value.replace(trimmed, `Updated ${updatedRestoreMatch[1]}`);
+    let allowQuestionRestore = trimmed.match(/^允许\s+(.+?)\s*吗？$/);
+    if (allowQuestionRestore) return value.replace(trimmed, `Allow ${allowQuestionRestore[1]}?`);
+    let projectRestore = trimmed.match(/^是，并在当前项目中始终允许“(.+?)”$/);
+    if (projectRestore) return value.replace(trimmed, `Yes, and always allow '${projectRestore[1]}' in this project`);
     return null;
   }
 

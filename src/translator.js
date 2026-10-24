@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.26";
+  const VERSION = "0.6.27";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1062,6 +1062,24 @@
       const isConv = workingInMatch[1].toLowerCase().includes("conversation");
       return value.replace(trimmed, isConv ? "（在此类对话中）。" : "（在此项目中）。");
     }
+    let manageMatch = trimmed.match(/^Manage\s+(project|workspace)\s+(folders|resources),\s*agent settings,\s*and permissions\.?$/i);
+    if (manageMatch) {
+      const isProj = manageMatch[1].toLowerCase() === "project";
+      const isRes = manageMatch[2].toLowerCase() === "resources";
+      const scope = isProj ? "项目" : "工作区";
+      const item = isRes ? "资源" : "文件夹";
+      return value.replace(trimmed, `管理${scope}${item}、智能体设置及权限。`);
+    }
+    let alsoIncludesMatch = trimmed.match(/^还会应用\s+全局权限\s+when working\s+(in this project|in these conversations)\.?$/i);
+    if (alsoIncludesMatch) {
+      const isProj = alsoIncludesMatch[1].toLowerCase().includes("project");
+      return value.replace(trimmed, `还会应用 全局权限 ${isProj ? "（在此项目中）。" : "（在此类对话中）。"}`);
+    }
+    let workingMatch = trimmed.match(/^when working\s+(in this project|in these conversations)\.?$/i);
+    if (workingMatch) {
+      const isProj = workingMatch[1].toLowerCase().includes("project");
+      return value.replace(trimmed, isProj ? "（在此项目中）。" : "（在此类对话中）。");
+    }
     if (trimmed.startsWith("A high-risk mode that disables all safety barriers")) {
       return value.replace(trimmed, "一种高风险模式，会禁用所有安全防护措施。智能体将拥有完全的系统访问权限，自动执行所有终端命令，并在无需审查提示的情况下读取或写入所有本地文件。");
     }
@@ -1350,6 +1368,26 @@
 
   function translateTextNode(node) {
     if (shouldSkip(node)) return;
+    const text = node.nodeValue;
+    if (text) {
+      const trimmed = text.trim();
+      if (trimmed === "when working") {
+        const next = node.nextSibling;
+        if (next && next.nodeType === Node.TEXT_NODE) {
+          const nextVal = (next.nodeValue || "").trim();
+          if (nextVal.startsWith("in this project") || nextVal.startsWith("in these conversations")) {
+            const isProj = nextVal.includes("project");
+            setTranslatedText(node, isProj ? "（在此项目中）。" : "（在此类对话中）。");
+            setTranslatedText(next, "");
+            const dot = next.nextSibling;
+            if (dot && dot.nodeType === Node.TEXT_NODE && dot.nodeValue.trim() === ".") {
+              setTranslatedText(dot, " ");
+            }
+            return;
+          }
+        }
+      }
+    }
     const translated = translateExact(node.nodeValue);
     if (translated && translated !== node.nodeValue) setTranslatedText(node, translated);
   }
@@ -1523,6 +1561,17 @@
     if (deleteRestore) return value.replace(trimmed, `Permanently delete ${deleteRestore[1]}.`);
     if (trimmed === "（在此类对话中）。") return value.replace(trimmed, "when working in these conversations.");
     if (trimmed === "（在此项目中）。") return value.replace(trimmed, "when working in this project.");
+    let manageRestore = trimmed.match(/^管理(项目|工作区)(文件夹|资源)、智能体设置及权限。?$/);
+    if (manageRestore) {
+      const scope = manageRestore[1] === "项目" ? "project" : "workspace";
+      const item = manageRestore[2] === "资源" ? "resources" : "folders";
+      return value.replace(trimmed, `Manage ${scope} ${item}, agent settings, and permissions.`);
+    }
+    let alsoIncludesRestore = trimmed.match(/^还会应用\s+全局权限\s+（在(此项目|此类对话)中）。?$/);
+    if (alsoIncludesRestore) {
+      const isProj = alsoIncludesRestore[1] === "此项目";
+      return value.replace(trimmed, `Also includes Global Permissions when working ${isProj ? "in this project." : "in these conversations."}`);
+    }
     return null;
   }
 

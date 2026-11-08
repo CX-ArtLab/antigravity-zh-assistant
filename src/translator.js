@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.27";
+  const VERSION = "0.6.28";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1080,6 +1080,14 @@
       const isProj = workingMatch[1].toLowerCase().includes("project");
       return value.replace(trimmed, isProj ? "（在此项目中）。" : "（在此类对话中）。");
     }
+    let earlierStepMatch = trimmed.match(/^Show\s+(\d+)\s+earlier\s+steps?$/i);
+    if (earlierStepMatch) return value.replace(trimmed, `显示较早的 ${earlierStepMatch[1]} 个步骤`);
+    let seekBackMatch = trimmed.match(/^Back\s+(\d+)s\s*\(←\)$/i);
+    if (seekBackMatch) return value.replace(trimmed, `快退 ${seekBackMatch[1]} 秒 (←)`);
+    let seekFwdMatch = trimmed.match(/^Forward\s+(\d+)s\s*\(→\)$/i);
+    if (seekFwdMatch) return value.replace(trimmed, `快进 ${seekFwdMatch[1]} 秒 (→)`);
+    let navTimeoutMatch = trimmed.match(/^Navigation timeout of\s+(\d+)ms\s+exceeded$/i);
+    if (navTimeoutMatch) return value.replace(trimmed, `导航超时（超过 ${navTimeoutMatch[1]} 毫秒）`);
     if (trimmed.startsWith("A high-risk mode that disables all safety barriers")) {
       return value.replace(trimmed, "一种高风险模式，会禁用所有安全防护措施。智能体将拥有完全的系统访问权限，自动执行所有终端命令，并在无需审查提示的情况下读取或写入所有本地文件。");
     }
@@ -1572,6 +1580,12 @@
       const isProj = alsoIncludesRestore[1] === "此项目";
       return value.replace(trimmed, `Also includes Global Permissions when working ${isProj ? "in this project." : "in these conversations."}`);
     }
+    let earlierStepRestore = trimmed.match(/^显示较早的\s+(\d+)\s+个步骤$/);
+    if (earlierStepRestore) return value.replace(trimmed, `Show ${earlierStepRestore[1]} earlier step${earlierStepRestore[1] === "1" ? "" : "s"}`);
+    let seekBackRestore = trimmed.match(/^快退\s+(\d+)\s+秒\s*\(←\)$/);
+    if (seekBackRestore) return value.replace(trimmed, `Back ${seekBackRestore[1]}s (←)`);
+    let seekFwdRestore = trimmed.match(/^快进\s+(\d+)\s+秒\s*\(→\)$/);
+    if (seekFwdRestore) return value.replace(trimmed, `Forward ${seekFwdRestore[1]}s (→)`);
     return null;
   }
 

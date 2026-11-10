@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.28";
+  const VERSION = "0.6.29";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -532,10 +532,15 @@
     "Set the volume of agent sounds.": "设置智能体提示音的音量。",
     "global permissions": "全局权限",
     "Global Permissions": "全局权限",
-    "when working in these conversations.": "。",
+    "when working in these conversations.": "（在此类对话中）。",
+    "when working in these conversations": "（在此类对话中）",
     "Also includes": "还会应用",
     "global settings": "全局设置",
-    "when working in this project.": "。",
+    "when working in this project.": "（在此项目中）。",
+    "when working in this project": "（在此项目中）",
+    "when working": "在",
+    "in this project": "此项目中",
+    "in these conversations": "此类对话中",
     "Chat Settings": "对话设置",
     "Verbose Agent Chat": "显示智能体详细过程",
     "Display and preserve intermediate thinking steps.": "显示并保留中间思考步骤。",
@@ -1395,6 +1400,25 @@
           }
         }
       }
+      if (trimmed === ".") {
+        const prev = node.previousSibling;
+        if (prev && prev.nodeType === Node.ELEMENT_NODE && (prev.textContent.trim() === "了解更多" || prev.textContent.trim() === "Learn more")) {
+          setTranslatedText(node, "。");
+          return;
+        }
+      }
+      if (trimmed.startsWith("Configure allowed and denied URLs for the browser subagent (invoked with /browser). Requires")) {
+        setTranslatedText(node, "配置浏览器子智能体（通过 /browser 调用）允许和拒绝的 URL。需要 ");
+        let sib = node.nextSibling;
+        while (sib) {
+          if (sib.nodeType === Node.TEXT_NODE && sib.nodeValue.trim() === ".") {
+            setTranslatedText(sib, "。");
+            break;
+          }
+          sib = sib.nextSibling;
+        }
+        return;
+      }
     }
     const translated = translateExact(node.nodeValue);
     if (translated && translated !== node.nodeValue) setTranslatedText(node, translated);
@@ -1586,6 +1610,9 @@
     if (seekBackRestore) return value.replace(trimmed, `Back ${seekBackRestore[1]}s (←)`);
     let seekFwdRestore = trimmed.match(/^快进\s+(\d+)\s+秒\s*\(→\)$/);
     if (seekFwdRestore) return value.replace(trimmed, `Forward ${seekFwdRestore[1]}s (→)`);
+    if (trimmed.startsWith("配置浏览器子智能体（通过 /browser 调用）允许和拒绝的 URL。需要")) {
+      return value.replace(trimmed, "Configure allowed and denied URLs for the browser subagent (invoked with /browser). Requires");
+    }
     return null;
   }
 
@@ -1657,14 +1684,18 @@
     originalTextNodes.clear();
     originalAttributes.clear();
     restoreLegacy(document);
-    localStorage.setItem(DISABLED_KEY, "1");
+    try { localStorage.setItem(DISABLED_KEY, "1"); } catch (_) {}
     delete window.__antigravityZhAssistant;
     return { ok: true, version: VERSION, restored: true };
   }
 
   if (previousAssistant) restoreLegacy(document);
   delete window.__antigravityZhAssistant;
-  if (localStorage.getItem(DISABLED_KEY) === "1") {
+  let isDisabled = false;
+  try {
+    isDisabled = localStorage.getItem(DISABLED_KEY) === "1";
+  } catch (_) {}
+  if (isDisabled) {
     restoreLegacy(document);
     return { ok: true, version: VERSION, disabled: true };
   }

@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.29";
+  const VERSION = "0.6.30";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1404,6 +1404,17 @@
         const prev = node.previousSibling;
         if (prev && prev.nodeType === Node.ELEMENT_NODE && (prev.textContent.trim() === "了解更多" || prev.textContent.trim() === "Learn more")) {
           setTranslatedText(node, "。");
+          return;
+        }
+      }
+      if (trimmed === "and") {
+        const prev = node.previousSibling;
+        const next = node.nextSibling;
+        if (
+          (prev && prev.nodeType === Node.ELEMENT_NODE && /Terms of Service|服务条款/.test(prev.textContent || "")) ||
+          (next && next.nodeType === Node.ELEMENT_NODE && /Google Privacy Policy|Google 隐私权政策/.test(next.textContent || ""))
+        ) {
+          setTranslatedText(node, " 和 ");
           return;
         }
       }

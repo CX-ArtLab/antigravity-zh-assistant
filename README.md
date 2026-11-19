@@ -24,8 +24,10 @@
 
 1. 从 [Releases](https://github.com/CX-ARTLab/antigravity-zh-assistant/releases/latest) 下载最新版本的 `AntigravityZhAssistant-macOS-apple-silicon.zip`。
 2. 双击解压得到 `AntigravityZhAssistant-macOS-apple-silicon.app`，将其拖入 **“访达 (Finder) -> 应用程序 (/Applications)”** 中。
-3. 先启动 Antigravity，双击运行助手，点击 **“立即应用汉化”** 即可体验完整中文界面。
+3. 打开助手，点击 **“启动并汉化”**。助手可以连接已经可用的调试接口，也可以用进程之间的私有管道启动 Antigravity。用私有管道启动时无需开放 TCP 调试端口。
 4. 如需开机自启或同步最新词典，勾选界面中的“随系统启动”与“自动加载最新汉化包”即可。
+
+如果 Antigravity 已经打开，但没有可连接的调试接口，请保存工作，退出 Antigravity 后再点「启动并汉化」。助手会在退出时提醒你保存工作，因为关闭私有管道也会关闭它启动的 Antigravity。
 
 > **Gatekeeper 安全提示**：由于开源程序未购买 Apple 开发者企业签名证书，若首次打开弹出安全提示，可前往 **“系统设置 -> 隐私与安全性”** 点击 **“仍要打开”**；或在终端中执行：
 > ```bash

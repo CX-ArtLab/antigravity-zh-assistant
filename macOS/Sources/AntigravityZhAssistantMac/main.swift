@@ -27,60 +27,89 @@ private enum AssistantError: LocalizedError {
     case noDebugPort
     case noTarget
     case invalidResponse
+    case notInstalled
+    case restartRequired
 
     var errorDescription: String? {
         switch self {
-        case .noDebugPort: return "未找到 Antigravity 调试接口。请先启动 Antigravity。"
-        case .noTarget: return "未找到可注入的 Antigravity 页面。"
+        case .noDebugPort: return "点击「启动并汉化」以打开 Antigravity。"
+        case .noTarget: return "还没找到 Antigravity 主窗口。窗口加载后请重试。"
         case .invalidResponse: return "Antigravity 调试接口返回了无效响应。"
+        case .notInstalled: return "未找到 Antigravity 桌面应用。"
+        case .restartRequired: return "请在 Antigravity 中保存工作并退出，然后回到助手点击「启动并汉化」。"
         }
     }
 }
 
-private struct DevToolsTarget {
-    let webSocketURL: URL
+private enum DevToolsTarget {
+    case socket(URL)
+    case pipe(PrivateDevTools, targetID: String)
 }
 
 private final class CDPClient {
-    private let socket: URLSessionWebSocketTask
+    private enum Connection {
+        case socket(URLSessionWebSocketTask)
+        case pipe(PrivateDevTools, sessionID: String)
+    }
+
+    private let connection: Connection
     private var nextID = 1
 
-    init(url: URL) {
-        socket = URLSession.shared.webSocketTask(with: url)
-        socket.resume()
+    init(target: DevToolsTarget) async throws {
+        switch target {
+        case .socket(let url):
+            let socket = URLSession.shared.webSocketTask(with: url)
+            socket.resume()
+            connection = .socket(socket)
+        case .pipe(let pipe, let targetID):
+            let reply = try await pipe.request("Target.attachToTarget", params: ["targetId": targetID, "flatten": true])
+            guard let sessionID = reply["sessionId"] as? String else { throw AssistantError.invalidResponse }
+            connection = .pipe(pipe, sessionID: sessionID)
+        }
     }
 
     func evaluate(_ expression: String) async throws -> Any? {
+        let params: [String: Any] = ["expression": expression, "returnByValue": true, "awaitPromise": false]
+        let result: [String: Any]
+        switch connection {
+        case .socket(let socket):
+            result = try await sendViaSocket(socket, params: params)
+        case .pipe(let pipe, let sessionID):
+            result = try await pipe.request("Runtime.evaluate", params: params, sessionID: sessionID)
+        }
+        if let exception = result["exceptionDetails"] as? [String: Any] {
+            throw NSError(domain: "CDP", code: 1, userInfo: [NSLocalizedDescriptionKey: String(describing: exception)])
+        }
+        return (result["result"] as? [String: Any])?["value"]
+    }
+
+    private func sendViaSocket(_ socket: URLSessionWebSocketTask, params: [String: Any]) async throws -> [String: Any] {
         let id = nextID
         nextID += 1
-        let command: [String: Any] = [
-            "id": id,
-            "method": "Runtime.evaluate",
-            "params": ["expression": expression, "returnByValue": true, "awaitPromise": false]
-        ]
-        let data = try JSONSerialization.data(withJSONObject: command)
+        let data = try JSONSerialization.data(withJSONObject: ["id": id, "method": "Runtime.evaluate", "params": params])
         try await socket.send(.string(String(decoding: data, as: UTF8.self)))
 
         while true {
-            let message = try await socket.receive()
             let payload: Data
-            switch message {
+            switch try await socket.receive() {
             case .string(let text): payload = Data(text.utf8)
             case .data(let data): payload = data
             @unknown default: throw AssistantError.invalidResponse
             }
-            guard let object = try JSONSerialization.jsonObject(with: payload) as? [String: Any] else { continue }
-            guard let responseID = object["id"] as? Int, responseID == id else { continue }
-            let result = object["result"] as? [String: Any]
-            if let exception = result?["exceptionDetails"] as? [String: Any] {
-                throw NSError(domain: "CDP", code: 1, userInfo: [NSLocalizedDescriptionKey: String(describing: exception)])
-            }
-            return (result?["result"] as? [String: Any])?["value"]
+            guard let object = try JSONSerialization.jsonObject(with: payload) as? [String: Any],
+                  object["id"] as? Int == id else { continue }
+            guard let result = object["result"] as? [String: Any] else { throw AssistantError.invalidResponse }
+            return result
         }
     }
 
-    func close() {
-        socket.cancel(with: .normalClosure, reason: nil)
+    func close() async {
+        switch connection {
+        case .socket(let socket):
+            socket.cancel(with: .normalClosure, reason: nil)
+        case .pipe(let pipe, let sessionID):
+            _ = try? await pipe.request("Target.detachFromTarget", params: ["sessionId": sessionID])
+        }
     }
 }
 
@@ -95,7 +124,8 @@ private final class DevToolsDiscovery {
         guard !ports.isEmpty else { throw AssistantError.noDebugPort }
         for port in ports {
             guard let url = URL(string: "http://127.0.0.1:\(port)/json/list") else { continue }
-            guard let (data, _) = try? await URLSession.shared.data(from: url),
+            let request = URLRequest(url: url, timeoutInterval: 2)
+            guard let (data, _) = try? await URLSession.shared.data(for: request),
                   let pages = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { continue }
             let matches = pages.compactMap { page -> DevToolsTarget? in
                 guard (page["type"] as? String) == "page",
@@ -103,7 +133,7 @@ private final class DevToolsDiscovery {
                       rawURL.contains("127.0.0.1") || rawURL.contains("localhost"),
                       let rawWebSocket = page["webSocketDebuggerUrl"] as? String,
                       let webSocketURL = URL(string: rawWebSocket) else { return nil }
-                return DevToolsTarget(webSocketURL: webSocketURL)
+                return .socket(webSocketURL)
             }
             if !matches.isEmpty { return matches }
         }
@@ -123,7 +153,7 @@ private final class DevToolsDiscovery {
 
 @MainActor
 private final class AppModel: ObservableObject {
-    @Published var status = "尚未汉化"
+    @Published var status = "启动并汉化"
     @Published var detail = ""
     @Published var isLocalized = false
     @Published var isBusy = false
@@ -136,6 +166,10 @@ private final class AppModel: ObservableObject {
     private var unknownStrings = Set<String>()
     private var monitorTask: Task<Void, Never>?
     private let discovery = DevToolsDiscovery()
+    private var privateDevTools: PrivateDevTools?
+    private var localizationPaused = false
+
+    var managesAntigravity: Bool { privateDevTools?.isRunning == true }
 
     init() {
         autoUpdate = UserDefaults.standard.object(forKey: "AutoUpdate") as? Bool ?? true
@@ -145,7 +179,7 @@ private final class AppModel: ObservableObject {
         monitorTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
-                guard let self, self.autoUpdate, !self.isBusy else { continue }
+                guard let self, self.autoUpdate, !self.isBusy, !self.localizationPaused else { continue }
                 await self.applyLocalization(silent: true)
             }
         }
@@ -156,30 +190,27 @@ private final class AppModel: ObservableObject {
     func applyLocalization(silent: Bool = false) async {
         guard !isBusy else { return }
         isBusy = true
+        defer { isBusy = false }
         status = "正在连接"
         detail = "正在连接 Antigravity 并应用汉化……"
         do {
+            let targets = try await findTargets(allowLaunch: !silent)
+            if !silent { localizationPaused = false }
             var updateFailed = false
             if autoUpdate {
                 do { try await updateTranslationPack() }
                 catch { updateFailed = true }
             }
-            let targets = try await discovery.targets()
             let script = try makeTranslationScript()
             var found = Set<String>()
-            for target in targets {
-                let client = CDPClient(url: target.webSocketURL)
+            try await visit(targets) { client in
                 _ = try await client.evaluate("localStorage.removeItem('__antigravityZhAssistantDisabled'); true")
                 guard let outcome = try await client.evaluate(script) as? [String: Any],
                       outcome["ok"] as? Bool == true,
-                      outcome["disabled"] == nil else {
-                    client.close()
-                    throw AssistantError.invalidResponse
-                }
+                      outcome["disabled"] == nil else { throw AssistantError.invalidResponse }
                 if let values = try await client.evaluate("window.__antigravityZhAssistant?.collectUnknown?.() || []") as? [String] {
                     found.formUnion(values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) })
                 }
-                client.close()
             }
             unknownStrings = found
             unknownCount = found.count
@@ -190,28 +221,88 @@ private final class AppModel: ObservableObject {
             let scanDetail = found.isEmpty ? "界面已扫描，当前没有发现待适配的系统词条。" : "发现 \(found.count) 条待适配系统文字。"
             detail = updateFailed ? "\(scanDetail) 自动更新暂不可用，已使用本地词典。" : scanDetail
         } catch {
-            if !silent { status = "暂未连接" }
+            isLocalized = false
+            status = "启动并汉化"
             detail = error.localizedDescription
         }
-        isBusy = false
     }
 
     func toggleLocalization() async {
-        if isLocalized {
-            do {
-                let targets = try await discovery.targets()
-                for target in targets {
-                    let client = CDPClient(url: target.webSocketURL)
-                    _ = try await client.evaluate("window.__antigravityZhAssistant?.restore?.() || {ok:true}")
-                    client.close()
-                }
-                isLocalized = false
-                status = "尚未汉化"
-                detail = ""
-            } catch { detail = error.localizedDescription }
-        } else {
+        guard !isBusy else { return }
+        if privateDevTools?.isRunning == false { isLocalized = false }
+        guard isLocalized else {
             await applyLocalization()
+            return
         }
+
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try await visit(findTargets(allowLaunch: false)) { client in
+                _ = try await client.evaluate("window.__antigravityZhAssistant?.restore?.() || {ok:true}")
+            }
+            localizationPaused = true
+            isLocalized = false
+            status = "启动并汉化"
+            detail = ""
+        } catch { detail = error.localizedDescription }
+    }
+
+    private func visit(_ targets: [DevToolsTarget], action: (CDPClient) async throws -> Void) async throws {
+        for target in targets {
+            let client = try await CDPClient(target: target)
+            do {
+                try await action(client)
+            } catch {
+                await client.close()
+                throw error
+            }
+            await client.close()
+        }
+    }
+
+    private func findTargets(allowLaunch: Bool) async throws -> [DevToolsTarget] {
+        if let pipe = privateDevTools, pipe.isRunning {
+            return try await targets(from: pipe, waitForPage: allowLaunch)
+        }
+        privateDevTools = nil
+
+        do {
+            return try await discovery.targets()
+        } catch {
+            let identifier = "com.google.antigravity"
+            guard NSRunningApplication.runningApplications(withBundleIdentifier: identifier).isEmpty else {
+                throw AssistantError.restartRequired
+            }
+            guard allowLaunch else { throw error }
+            guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier),
+                  let app = Bundle(url: appURL), app.bundleIdentifier == identifier,
+                  let executable = app.executableURL else {
+                throw AssistantError.notInstalled
+            }
+            let pipe = try PrivateDevTools(executable: executable)
+            privateDevTools = pipe
+            return try await targets(from: pipe, waitForPage: true)
+        }
+    }
+
+    private func targets(from pipe: PrivateDevTools, waitForPage: Bool) async throws -> [DevToolsTarget] {
+        let deadline = DispatchTime.now() + .seconds(waitForPage ? 18 : 0)
+        repeat {
+            let reply = try await pipe.request("Target.getTargets")
+            let pages = (reply["targetInfos"] as? [[String: Any]] ?? []).compactMap { target -> DevToolsTarget? in
+                guard target["type"] as? String == "page", target["title"] as? String == "Antigravity",
+                      let address = target["url"] as? String, let url = URL(string: address),
+                      let host = url.host, ["127.0.0.1", "localhost", "[::1]"].contains(host),
+                      let scheme = url.scheme, ["http", "https"].contains(scheme),
+                      let id = target["targetId"] as? String else { return nil }
+                return .pipe(pipe, targetID: id)
+            }
+            if !pages.isEmpty { return pages }
+            if DispatchTime.now() >= deadline { break }
+            try await Task.sleep(nanoseconds: 250_000_000)
+        } while pipe.isRunning
+        throw AssistantError.noTarget
     }
 
     func setAutoUpdate(_ value: Bool) {
@@ -456,6 +547,7 @@ private struct ContentView: View {
                             .frame(maxWidth: .infinity, minHeight: 42)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(model.isBusy)
                     .tint(Color(red: 0.52, green: 0.18, blue: 0.93))
                     .padding(.horizontal, 28)
                     .padding(.top, 18)
@@ -491,12 +583,28 @@ private struct ContentView: View {
     }
 }
 
+@MainActor
+private final class AssistantAppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
+    let model = AppModel()
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard model.managesAntigravity else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = "退出时也会关闭 Antigravity"
+        alert.informativeText = "请保存 Antigravity 中的工作后再退出。"
+        alert.addButton(withTitle: "取消")
+        alert.addButton(withTitle: "退出")
+        return alert.runModal() == .alertSecondButtonReturn ? .terminateNow : .terminateCancel
+    }
+}
+
 @main
+@MainActor
 struct AntigravityZhAssistantMacApp: App {
-    @StateObject private var model = AppModel()
+    @NSApplicationDelegateAdaptor(AssistantAppDelegate.self) private var delegate
 
     var body: some Scene {
-        WindowGroup { ContentView(model: model) }
+        WindowGroup { ContentView(model: delegate.model) }
         .windowStyle(.hiddenTitleBar)
     }
 }

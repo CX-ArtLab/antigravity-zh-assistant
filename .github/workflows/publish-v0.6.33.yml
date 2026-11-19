@@ -1,0 +1,88 @@
+name: Publish verified v0.6.33
+on:
+  push:
+    branches: [ci/v0.6.33-macos]
+    paths: ['.github/workflows/publish-v0.6.33.yml']
+permissions:
+  contents: read
+concurrency:
+  group: publish-v0.6.33
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 684b98bd2c8cea51556ea67ea1866cf096624e2f
+          persist-credentials: false
+      - name: Build
+        shell: powershell
+        run: .\build.ps1
+      - name: Package portable ZIP
+        shell: powershell
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP "AntigravityZhAssistant"
+          Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item -LiteralPath "dist\AntigravityZhAssistant.exe" -Destination $stage
+          Copy-Item -LiteralPath "README.md" -Destination $stage
+          Copy-Item -LiteralPath "LICENSE" -Destination $stage
+          Compress-Archive -Path (Join-Path $stage "*") -DestinationPath "dist\AntigravityZhAssistant-windows.zip" -Force
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AntigravityZhAssistant-windows
+          path: dist/AntigravityZhAssistant-windows.zip
+          if-no-files-found: error
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 684b98bd2c8cea51556ea67ea1866cf096624e2f
+          persist-credentials: false
+      - name: Build macOS app and ZIP
+        shell: bash
+        run: bash macOS/build-macos.sh
+      - name: Upload macOS build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AntigravityZhAssistant-macOS-apple-silicon
+          path: dist/AntigravityZhAssistant-macOS-apple-silicon.zip
+          if-no-files-found: error
+
+  publish:
+    needs: [build, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Verify both ZIPs and publish the exact reviewed commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_COMMIT: 684b98bd2c8cea51556ea67ea1866cf096624e2f
+          RELEASE_TAG: v0.6.33
+          RELEASE_NOTES: |
+            ## v0.6.33
+            
+            - 修复 Apple Silicon Mac 上 Antigravity 2.33.0 默认启动时无法连接汉化助手的问题。现在可在助手内点击「启动并汉化」，无需开放 TCP 调试端口。
+            - 如果 Antigravity 已经打开且无法连接，请先保存工作并手动退出，再点击「启动并汉化」。
+            - 如果 Antigravity 是由助手启动的，正常退出助手会提示先保存；强退或崩溃也可能一并关闭 Antigravity。
+            - Windows 继续沿用 v0.6.32 的连接方式。
+            - 感谢 @2311771725niangao 提供修复和 Apple Silicon 实机测试（PR #4）。本次发布另经 GitHub Actions 构建验证。
+        run: |
+          set -euo pipefail
+          mac=dist/AntigravityZhAssistant-macOS-apple-silicon.zip
+          win=dist/AntigravityZhAssistant-windows.zip
+          unzip -tq "$mac"
+          unzip -tq "$win"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$TARGET_COMMIT"
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$RELEASE_TAG" -f sha="$TARGET_COMMIT" --jq .object.sha
+          gh release create "$RELEASE_TAG" "$mac" "$win" --verify-tag --repo "$GITHUB_REPOSITORY" --notes "$RELEASE_NOTES" --title "Antigravity 中文助手 $RELEASE_TAG"

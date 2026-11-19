@@ -23,8 +23,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Google Antigravity 离线界面汉化伴侣")]
 [assembly: AssemblyCompany("Local Companion")]
 [assembly: AssemblyProduct("Antigravity 中文助手")]
-[assembly: AssemblyVersion("0.6.31.0")]
-[assembly: AssemblyFileVersion("0.6.31.0")]
+[assembly: AssemblyVersion("0.6.32.0")]
+[assembly: AssemblyFileVersion("0.6.32.0")]
 
 namespace AntigravityZhAssistant
 {
@@ -149,7 +149,7 @@ namespace AntigravityZhAssistant
             localHttp.Timeout = TimeSpan.FromSeconds(4);
             updateHttp = new HttpClient();
             updateHttp.Timeout = TimeSpan.FromSeconds(8);
-            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.31");
+            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.32");
 
             Text = AppName;
             StartPosition = FormStartPosition.CenterScreen;
@@ -1032,6 +1032,8 @@ namespace AntigravityZhAssistant
             startButton.Enabled = false;
             try
             {
+                string portFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    "Antigravity", "DevToolsActivePort");
                 if (!IsAntigravityRunning())
                 {
                     if (!launchIfNeeded)
@@ -1049,6 +1051,42 @@ namespace AntigravityZhAssistant
                     SetStatus("正在启动", "等待 Antigravity 界面和调试接口就绪……", Color.FromArgb(26, 90, 170));
                     ProcessStartInfo startInfo = new ProcessStartInfo();
                     startInfo.FileName = exe;
+                    startInfo.Arguments = "--remote-debugging-port=0";
+                    startInfo.UseShellExecute = true;
+                    Process.Start(startInfo);
+                }
+                else if (!File.Exists(portFile))
+                {
+                    if (!launchIfNeeded)
+                    {
+                        SetStatus("需要重启应用", "Antigravity 未开启调试接口，请点击按钮重启以应用汉化。", Color.DarkOrange);
+                        return;
+                    }
+                    DialogResult dr = MessageBox.Show(
+                        "当前运行的 Antigravity 未开启调试接口（2.33.0+ 默认关闭），需要重启 Antigravity 才能注入汉化。\n\n是否立即重启 Antigravity？",
+                        AppName,
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+                    if (dr != DialogResult.Yes)
+                    {
+                        SetStatus("暂未连接", "请通过汉化助手启动 Antigravity 以应用汉化。", Color.DarkOrange);
+                        return;
+                    }
+                    string exe = FindAntigravityExecutable();
+                    if (exe == null)
+                    {
+                        SetStatus("未找到 Antigravity", "请先安装 Google Antigravity。", Color.Firebrick);
+                        return;
+                    }
+                    SetStatus("正在重启", "正在重启 Antigravity 并开启调试接口……", Color.FromArgb(26, 90, 170));
+                    foreach (Process proc in Process.GetProcessesByName("Antigravity"))
+                    {
+                        try { proc.Kill(); proc.WaitForExit(3000); } catch { }
+                    }
+                    await Task.Delay(500);
+                    ProcessStartInfo startInfo = new ProcessStartInfo();
+                    startInfo.FileName = exe;
+                    startInfo.Arguments = "--remote-debugging-port=0";
                     startInfo.UseShellExecute = true;
                     Process.Start(startInfo);
                 }

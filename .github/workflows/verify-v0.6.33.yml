@@ -1,0 +1,37 @@
+name: Verify v0.6.33 packages
+on:
+  push:
+    branches: [ci/v0.6.33-macos]
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: bash macOS/build-macos.sh
+      - name: Verify package and app version
+        run: |
+          unzip -tq dist/AntigravityZhAssistant-macOS-apple-silicon.zip
+          test "$(plutil -extract CFBundleShortVersionString raw dist/AntigravityZhAssistant-macOS-apple-silicon.app/Contents/Info.plist)" = 0.6.33
+          test "$(lipo -archs dist/AntigravityZhAssistant-macOS-apple-silicon.app/Contents/MacOS/AntigravityZhAssistantMac)" = arm64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AntigravityZhAssistant-macOS-apple-silicon
+          path: dist/AntigravityZhAssistant-macOS-apple-silicon.zip
+          if-no-files-found: error
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify Windows build
+        shell: powershell
+        run: |
+          .\build.ps1
+          if ((Get-Item .\dist\AntigravityZhAssistant.exe).VersionInfo.FileVersion -ne "0.6.33.0") { throw "Wrong package version" }

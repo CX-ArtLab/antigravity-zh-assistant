@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.33";
+  const VERSION = "0.6.34";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1129,6 +1129,17 @@
     if (reqMatch) return value.replace(trimmed, `剩余请求次数：${reqMatch[1]}`);
     let tokMatch = trimmed.match(/^Tokens remaining:\s*(\d+)$/i);
     if (tokMatch) return value.replace(trimmed, `剩余 Token 数：${tokMatch[1]}`);
+    let planMatch = trimmed.match(/^Your Plan:\s*(.+)$/i);
+    if (planMatch) return value.replace(trimmed, `当前方案：${planMatch[1]}`);
+    let weeklyLimitMatch = trimmed.match(/^(.+?)\s+Weekly Limit$/i);
+    if (weeklyLimitMatch) return value.replace(trimmed, `${weeklyLimitMatch[1]} 每周额度`);
+    let fiveHourLimitMatch = trimmed.match(/^(.+?)\s+Five Hour Limit$/i);
+    if (fiveHourLimitMatch) return value.replace(trimmed, `${fiveHourLimitMatch[1]} 五小时额度`);
+    let modelEffortMatch = trimmed.match(/^((?:Gemini|Claude|GPT)[^\n]*?)\s+(Minimal|Low|Medium|High|Extra High)$/);
+    if (modelEffortMatch) {
+      const effortMap = { "Minimal": "极低", "Low": "低", "Medium": "中等", "High": "高", "Extra High": "超高" };
+      return value.replace(trimmed, `${modelEffortMatch[1]} ${effortMap[modelEffortMatch[2]]}`);
+    }
     let resetsEveryMatch = trimmed.match(/^Resets every\s+(.+)$/i);
     if (resetsEveryMatch) return value.replace(trimmed, `每 ${translateDuration(resetsEveryMatch[1])}重置`);
     let resetsInMatch = trimmed.match(/^Resets in\s+(.+)$/i);
@@ -1236,6 +1247,15 @@
     }
     if (trimmed.startsWith("Discovers UI plugin panels relevant to the current user task")) {
       return value.replace(trimmed, "发现与当前任务相关的 UI 插件面板，并在对话中提供一键在侧边面板打开/切换的快捷入口。");
+    }
+    if (trimmed.startsWith("(Preview & Quota Heavy) Run a swarm:")) {
+      return value.replace(trimmed, "（预览版 · 消耗较高额度）运行智能体集群：多个智能体在各自独立对话中并行处理同一任务，并通过共享消息板协作。");
+    }
+    if (trimmed.startsWith("ONLY for the native-swarm worker whose brief says it is the monitor")) {
+      return value.replace(trimmed, "仅适用于任务简报中指定为监控者的原生集群工作智能体。定时检查整个集群是否停滞，并唤醒能够解除阻塞的成员。");
+    }
+    if (trimmed.startsWith("What the coordinator writes so the Swarm UI's Overview can show the swarm's goal")) {
+      return value.replace(trimmed, "由协调者编写，用于在集群界面概览中展示集群目标、工作分组和截图时间线。请在向集群派发简报并添加首批工作智能体前加载此技能。");
     }
     if (trimmed.includes("[MCP Proxy] Socket connection error:")) {
       const translatedError = trimmed
@@ -1557,6 +1577,17 @@
     if (reqMatch) return value.replace(trimmed, `Requests remaining: ${reqMatch[1]}`);
     let tokMatch = trimmed.match(/^剩余 Token 数：\s*(\d+)$/);
     if (tokMatch) return value.replace(trimmed, `Tokens remaining: ${tokMatch[1]}`);
+    let planRestore = trimmed.match(/^当前方案：\s*(.+)$/);
+    if (planRestore) return value.replace(trimmed, `Your Plan: ${planRestore[1]}`);
+    let weeklyLimitRestore = trimmed.match(/^(.+?)\s+每周额度$/);
+    if (weeklyLimitRestore) return value.replace(trimmed, `${weeklyLimitRestore[1]} Weekly Limit`);
+    let fiveHourLimitRestore = trimmed.match(/^(.+?)\s+五小时额度$/);
+    if (fiveHourLimitRestore) return value.replace(trimmed, `${fiveHourLimitRestore[1]} Five Hour Limit`);
+    let modelEffortRestore = trimmed.match(/^((?:Gemini|Claude|GPT)[^\n]*?)\s+(极低|低|中等|高|超高)$/);
+    if (modelEffortRestore) {
+      const effortEnMap = { "极低": "Minimal", "低": "Low", "中等": "Medium", "高": "High", "超高": "Extra High" };
+      return value.replace(trimmed, `${modelEffortRestore[1]} ${effortEnMap[modelEffortRestore[2]]}`);
+    }
     let shortcutMatch = trimmed.match(/^((?:(?:Ctrl|Alt|Cmd|Option|Shift|Enter|\+)\s*)+)\s+(当前轮次结束后排队|立即发送|提示词为空时，发送队列中的下一条)$/);
     if (shortcutMatch) {
       const key = shortcutMatch[1].trim();

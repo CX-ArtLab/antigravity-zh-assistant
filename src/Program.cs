@@ -23,8 +23,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Google Antigravity 离线界面汉化伴侣")]
 [assembly: AssemblyCompany("Local Companion")]
 [assembly: AssemblyProduct("Antigravity 中文助手")]
-[assembly: AssemblyVersion("0.6.35.0")]
-[assembly: AssemblyFileVersion("0.6.35.0")]
+[assembly: AssemblyVersion("0.6.36.0")]
+[assembly: AssemblyFileVersion("0.6.36.0")]
 
 namespace AntigravityZhAssistant
 {
@@ -97,6 +97,7 @@ namespace AntigravityZhAssistant
         private StatusPillButton statusPill;
         private CardPanel onboardingCard;
         private Label infoLabel;
+        private LinkLabel updatePackLink;
         private readonly NotifyIcon trayIcon;
         private readonly ToolStripMenuItem trayStartupItem;
         private readonly System.Windows.Forms.Timer monitorTimer;
@@ -149,7 +150,7 @@ namespace AntigravityZhAssistant
             localHttp.Timeout = TimeSpan.FromSeconds(4);
             updateHttp = new HttpClient();
             updateHttp.Timeout = TimeSpan.FromSeconds(8);
-            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.35");
+            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.36");
 
             Text = AppName;
             StartPosition = FormStartPosition.CenterScreen;
@@ -520,6 +521,19 @@ namespace AntigravityZhAssistant
             infoLabel.SetBounds(U(114), U(454), U(272), U(24));
             infoLabel.TextAlign = ContentAlignment.MiddleCenter;
             Controls.Add(infoLabel);
+
+            updatePackLink = new LinkLabel();
+            updatePackLink.Text = "更新词典";
+            updatePackLink.Font = new Font("Microsoft YaHei UI", 12F * uiScale, FontStyle.Regular, GraphicsUnit.Pixel);
+            updatePackLink.LinkColor = Color.FromArgb(136, 57, 239);
+            updatePackLink.ActiveLinkColor = Color.FromArgb(108, 42, 200);
+            updatePackLink.VisitedLinkColor = Color.FromArgb(136, 57, 239);
+            updatePackLink.LinkBehavior = LinkBehavior.HoverUnderline;
+            updatePackLink.BackColor = Color.Transparent;
+            updatePackLink.TextAlign = ContentAlignment.MiddleCenter;
+            updatePackLink.SetBounds(U(170), U(482), U(160), U(22));
+            updatePackLink.Click += async delegate { await ManualUpdateTranslationPackAsync(); };
+            Controls.Add(updatePackLink);
         }
 
         private string BuildInfoText()
@@ -1399,6 +1413,102 @@ namespace AntigravityZhAssistant
             catch
             {
                 // Offline or an unavailable update server must never prevent local localization.
+            }
+        }
+
+        private async Task ManualUpdateTranslationPackAsync()
+        {
+            if (updatePackLink == null || !updatePackLink.Enabled) return;
+            updatePackLink.Enabled = false;
+            updatePackLink.Text = "正在检查词典...";
+            try
+            {
+                string manifestJson = await updateHttp.GetStringAsync(PackManifestUrl);
+                JavaScriptSerializer serializer = new JavaScriptSerializer();
+                IDictionary manifest = serializer.DeserializeObject(manifestJson) as IDictionary;
+                if (manifest == null)
+                {
+                    MessageBox.Show("无法解析云端词典清单，请稍后重试。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                string minApp = ReadString(manifest, "minimumAssistantVersion");
+                if (!string.IsNullOrWhiteSpace(minApp) && ComparePackVersions(AssistantVersionText, minApp) < 0)
+                {
+                    MessageBox.Show("云端词典需要主程序 v" + minApp + " 或更高版本，请前往 GitHub 下载主程序更新。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                string remoteVersion = ReadString(manifest, "version");
+                string packUrl = ReadString(manifest, "packUrl");
+                if (string.IsNullOrWhiteSpace(remoteVersion) || string.IsNullOrWhiteSpace(packUrl))
+                {
+                    MessageBox.Show("云端词典清单信息不完整。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                string localVersion = GetPackVersion();
+                string effectiveLocal = ComparePackVersions(localVersion, bundledPackVersion) > 0 && File.Exists(PackPath)
+                    ? localVersion
+                    : bundledPackVersion;
+                if (ComparePackVersions(remoteVersion, effectiveLocal) <= 0)
+                {
+                    MessageBox.Show("当前词典已是最新版本（" + effectiveLocal + "）。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                updatePackLink.Text = "正在下载词典...";
+                string packJson = await updateHttp.GetStringAsync(packUrl);
+                Dictionary<string, string> translations = serializer.Deserialize<Dictionary<string, string>>(packJson);
+                if (translations == null || translations.Count == 0)
+                {
+                    MessageBox.Show("下载的词典内容为空，已取消更新。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                foreach (KeyValuePair<string, string> item in translations)
+                {
+                    if (string.IsNullOrWhiteSpace(item.Key) || string.IsNullOrWhiteSpace(item.Value))
+                    {
+                        MessageBox.Show("下载的词典格式校验失败，已取消更新。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+                }
+
+                Directory.CreateDirectory(DataDirectory);
+                string temporaryPath = PackPath + ".download";
+                File.WriteAllText(temporaryPath, packJson, new UTF8Encoding(false));
+                if (File.Exists(PackPath)) File.Delete(PackPath);
+                File.Move(temporaryPath, PackPath);
+                SetPackVersion(remoteVersion);
+                lastPackWrite = File.GetLastWriteTimeUtc(PackPath);
+
+                bool reinjected = false;
+                if (lastInjection != DateTime.MinValue && IsAntigravityRunning())
+                {
+                    try
+                    {
+                        int count = await InjectIntoAntigravityAsync();
+                        reinjected = count > 0;
+                        if (reinjected)
+                        {
+                            SaveUnknownReport();
+                            UpdateMetrics();
+                        }
+                    }
+                    catch { }
+                }
+
+                string msg = reinjected
+                    ? "词典已更新至 " + remoteVersion + "，并已重新应用到 Antigravity。"
+                    : "词典已更新至 " + remoteVersion + "。";
+                MessageBox.Show(msg, AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch
+            {
+                MessageBox.Show("检查或下载词典失败，请检查网络连接。", AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            finally
+            {
+                updatePackLink.Text = "更新词典";
+                updatePackLink.Enabled = true;
             }
         }
 

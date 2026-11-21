@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.35";
+  const VERSION = "0.6.36";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1133,6 +1133,8 @@
     if (planMatch) return value.replace(trimmed, `当前方案：${planMatch[1]}`);
     let availPlanMatch = trimmed.match(/^(.+?)\s+is currently available to\s+(.+?)\s+plan subscribers\.$/i);
     if (availPlanMatch) return value.replace(trimmed, `${availPlanMatch[1]} 目前仅向 ${availPlanMatch[2]} 方案订阅用户开放。`);
+    let clearSiteMatch = trimmed.match(/^Clearing cookies and site data for\s+(.+?)\s+may sign you out of this site\.$/i);
+    if (clearSiteMatch) return value.replace(trimmed, `清除 ${clearSiteMatch[1]} 的 Cookie 和网站数据可能会使您退出该网站的登录状态。`);
     let weeklyLimitMatch = trimmed.match(/^(.+?)\s+Weekly Limit$/i);
     if (weeklyLimitMatch) return value.replace(trimmed, `${weeklyLimitMatch[1]} 每周额度`);
     let fiveHourLimitMatch = trimmed.match(/^(.+?)\s+Five Hour Limit$/i);
@@ -1587,6 +1589,8 @@
     if (planRestore) return value.replace(trimmed, `Your Plan: ${planRestore[1]}`);
     let availPlanRestore = trimmed.match(/^(.+?)\s+目前仅向\s+(.+?)\s+方案订阅用户开放。$/);
     if (availPlanRestore) return value.replace(trimmed, `${availPlanRestore[1]} is currently available to ${availPlanRestore[2]} plan subscribers.`);
+    let clearSiteRestore = trimmed.match(/^清除\s+(.+?)\s+的 Cookie 和网站数据可能会使您退出该网站的登录状态。$/);
+    if (clearSiteRestore) return value.replace(trimmed, `Clearing cookies and site data for ${clearSiteRestore[1]} may sign you out of this site.`);
     let weeklyLimitRestore = trimmed.match(/^(.+?)\s+每周额度$/);
     if (weeklyLimitRestore) return value.replace(trimmed, `${weeklyLimitRestore[1]} Weekly Limit`);
     let fiveHourLimitRestore = trimmed.match(/^(.+?)\s+五小时额度$/);

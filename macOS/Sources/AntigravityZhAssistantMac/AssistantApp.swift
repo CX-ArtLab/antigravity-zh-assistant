@@ -4,7 +4,7 @@ import Foundation
 import Darwin
 
 private let appName = "Antigravity 中文助手"
-private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.35"
+private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.36"
 private let manifestURL = URL(string: "https://raw.githubusercontent.com/CX-ARTLab/antigravity-zh-assistant/main/translation/manifest.json")!
 
 private func assistantIconImage() -> NSImage {
@@ -332,6 +332,57 @@ private final class AppModel: ObservableObject {
         UserDefaults.standard.set(version, forKey: "TranslationPackVersion")
     }
 
+    func updateTranslationPackManually() async {
+        guard !isBusy else { return }
+        isBusy = true
+        detail = "正在检查词典..."
+        do {
+            let (manifestData, _) = try await URLSession.shared.data(from: manifestURL)
+            guard let manifest = try JSONSerialization.jsonObject(with: manifestData) as? [String: Any],
+                  let version = manifest["version"] as? String,
+                  let packString = manifest["packUrl"] as? String,
+                  let url = URL(string: packString) else {
+                detail = "无法解析云端词典清单。"
+                isBusy = false
+                return
+            }
+            if let minApp = manifest["minimumAssistantVersion"] as? String,
+               Self.comparePackVersions(appVersion, minApp) == .orderedAscending {
+                detail = "云端词典需要主程序 v\(minApp)+，请前往 GitHub 下载主程序更新。"
+                isBusy = false
+                return
+            }
+            let bundledVersion = Self.bundledTranslationPackVersion()
+            let cachedVersion = UserDefaults.standard.string(forKey: "TranslationPackVersion") ?? ""
+            let effectiveLocal = Self.comparePackVersions(cachedVersion, bundledVersion) == .orderedDescending ? cachedVersion : bundledVersion
+            if Self.comparePackVersions(version, effectiveLocal) != .orderedDescending {
+                detail = "当前词典已是最新版本（\(effectiveLocal)）。"
+                isBusy = false
+                return
+            }
+            detail = "正在下载词典..."
+            let (packData, _) = try await URLSession.shared.data(from: url)
+            guard let pack = try JSONSerialization.jsonObject(with: packData) as? [String: String], !pack.isEmpty else {
+                detail = "下载的词典内容为空。"
+                isBusy = false
+                return
+            }
+            translationPack = Self.addingMacOSOverrides(to: pack)
+            try packData.write(to: Self.dataDirectory().appendingPathComponent("translation-pack.json"), options: .atomic)
+            UserDefaults.standard.set(version, forKey: "TranslationPackVersion")
+            if isLocalized {
+                isBusy = false
+                await applyLocalization(silent: true)
+                detail = "词典已更新至 \(version)，并已重新应用。"
+                return
+            }
+            detail = "词典已更新至 \(version)。"
+        } catch {
+            detail = "检查或下载词典失败，请检查网络连接。"
+        }
+        isBusy = false
+    }
+
     private func makeTranslationScript() throws -> String {
         guard let url = Self.resourceURL("translator", ext: "js") else { throw AssistantError.invalidResponse }
         var script = try String(contentsOf: url, encoding: .utf8)
@@ -569,6 +620,12 @@ private struct ContentView: View {
                     .font(.system(size: 14))
                     .foregroundColor(Color(red: 0.40, green: 0.42, blue: 0.52))
                     .padding(.top, 16)
+                Button("更新词典") { Task { await model.updateTranslationPackManually() } }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(red: 0.53, green: 0.22, blue: 0.94))
+                    .disabled(model.isBusy)
+                    .padding(.top, 6)
                 if !model.detail.isEmpty {
                     Text(model.detail)
                         .font(.system(size: 11))

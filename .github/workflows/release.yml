@@ -14,6 +14,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Build
         shell: powershell
         run: .\build.ps1
@@ -37,6 +39,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Build macOS app and ZIP
         shell: bash
         run: bash macOS/build-macos.sh
@@ -54,6 +58,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -67,4 +73,10 @@ jobs:
           if [ -n "$ADAPTED_VER" ]; then
             TITLE="${TITLE}（适配 Antigravity ${ADAPTED_VER}）"
           fi
-          gh release create "${{ github.ref_name }}" dist/*.zip --repo "${{ github.repository }}" --generate-notes --title "$TITLE"
+          PREV_TAG="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+          if [ -n "$PREV_TAG" ] && ! git diff --quiet "$PREV_TAG" HEAD -- src/Program.cs src/app.manifest src/translator.js macOS/Sources macOS/Resources/translator.js macOS/Info.plist; then
+            NOTICE="> ⚠️ **主程序更新（需重新下载）**：本次包含主程序或动态脚本逻辑改动，请重新下载新版安装包覆盖本地程序。"
+          else
+            NOTICE="> 💡 **词典更新（在线生效，无需下载）**：已安装主程序的用户，开启「自动更新」或点击界面上的「更新词典」即可直接生效，无需重新下载主程序。"
+          fi
+          gh release create "${{ github.ref_name }}" dist/*.zip --repo "${{ github.repository }}" --generate-notes --notes "$NOTICE" --title "$TITLE"

@@ -68,15 +68,43 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          TAG="${{ github.ref_name }}"
           ADAPTED_VER="$(python3 -c 'import json; print(json.load(open("translation/manifest.json")).get("adaptedAntigravityVersion", ""))' 2>/dev/null || true)"
-          TITLE="Antigravity 中文助手 ${{ github.ref_name }}"
+          PACK_VER="$(python3 -c 'import json; print(json.load(open("translation/manifest.json")).get("version", ""))' 2>/dev/null || true)"
+          REQ_APP="$(python3 -c 'import json; print("true" if json.load(open("translation/manifest.json")).get("requiresAppUpdate", False) else "false")' 2>/dev/null || echo "false")"
+          TITLE="Antigravity 中文助手 ${TAG}"
           if [ -n "$ADAPTED_VER" ]; then
             TITLE="${TITLE}（适配 Antigravity ${ADAPTED_VER}）"
           fi
-          PREV_TAG="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
-          if [ -n "$PREV_TAG" ] && ! git diff --quiet "$PREV_TAG" HEAD -- src/Program.cs src/app.manifest src/translator.js macOS/Sources macOS/Resources/translator.js macOS/Info.plist; then
+          if [ "$REQ_APP" = "true" ]; then
             NOTICE="> ⚠️ **主程序更新（需重新下载）**：本次包含主程序或动态脚本逻辑改动，请重新下载新版安装包覆盖本地程序。"
           else
             NOTICE="> 💡 **词典更新（在线生效，无需下载）**：已安装主程序的用户，开启「自动更新」或点击界面上的「更新词典」即可直接生效，无需重新下载主程序。"
           fi
-          gh release create "${{ github.ref_name }}" dist/*.zip --repo "${{ github.repository }}" --generate-notes --notes "$NOTICE" --title "$TITLE"
+          PREV_TAG="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+          CHANGES=""
+          if [ -n "$PREV_TAG" ]; then
+            CHANGES="$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" | grep -v '^$' || true)"
+          else
+            CHANGES="- $(git log -1 --pretty=format:"%s")"
+          fi
+          NOTES_FILE="$(mktemp)"
+          {
+            echo "$NOTICE"
+            echo ""
+            echo "### 版本信息"
+            [ -n "$ADAPTED_VER" ] && echo "- 适配 Antigravity 版本：\`${ADAPTED_VER}\`"
+            [ -n "$PACK_VER" ] && echo "- 词典版本：\`${PACK_VER}\`"
+            echo ""
+            echo "### 更新内容"
+            echo "$CHANGES"
+            echo ""
+            echo "### 安装说明"
+            echo "- **Windows**：下载 \`AntigravityZhAssistant-windows.zip\` 解压后直接运行 \`AntigravityZhAssistant.exe\`。"
+            echo "- **macOS (Apple Silicon)**：下载 \`AntigravityZhAssistant-macOS-apple-silicon.zip\` 解压后将 \`Antigravity 中文助手.app\` 拖入「应用程序」文件夹。"
+            if [ -n "$PREV_TAG" ]; then
+              echo ""
+              echo "[查看完整代码对比](https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${TAG})"
+            fi
+          } > "$NOTES_FILE"
+          gh release create "$TAG" dist/*.zip --repo "${{ github.repository }}" --notes-file "$NOTES_FILE" --title "$TITLE"

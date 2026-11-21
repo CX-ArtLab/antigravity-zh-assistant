@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.34";
+  const VERSION = "0.6.35";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1131,13 +1131,19 @@
     if (tokMatch) return value.replace(trimmed, `剩余 Token 数：${tokMatch[1]}`);
     let planMatch = trimmed.match(/^Your Plan:\s*(.+)$/i);
     if (planMatch) return value.replace(trimmed, `当前方案：${planMatch[1]}`);
+    let availPlanMatch = trimmed.match(/^(.+?)\s+is currently available to\s+(.+?)\s+plan subscribers\.$/i);
+    if (availPlanMatch) return value.replace(trimmed, `${availPlanMatch[1]} 目前仅向 ${availPlanMatch[2]} 方案订阅用户开放。`);
     let weeklyLimitMatch = trimmed.match(/^(.+?)\s+Weekly Limit$/i);
     if (weeklyLimitMatch) return value.replace(trimmed, `${weeklyLimitMatch[1]} 每周额度`);
     let fiveHourLimitMatch = trimmed.match(/^(.+?)\s+Five Hour Limit$/i);
     if (fiveHourLimitMatch) return value.replace(trimmed, `${fiveHourLimitMatch[1]} 五小时额度`);
-    let modelEffortMatch = trimmed.match(/^((?:Gemini|Claude|GPT)[^\n]*?)\s+(Minimal|Low|Medium|High|Extra High)$/);
+    let modelEffortMatch = trimmed.match(/^((?:Gemini|Claude|GPT)[^\n]*?)\s+(\((?:Minimal|Low|Medium|High|XHigh|Extra High|Max|Orchestrator)\)|Minimal|Low|Medium|High|Extra High)$/);
     if (modelEffortMatch) {
-      const effortMap = { "Minimal": "极低", "Low": "低", "Medium": "中等", "High": "高", "Extra High": "超高" };
+      const effortMap = {
+        "Minimal": "极低", "Low": "低", "Medium": "中等", "High": "高", "Extra High": "超高",
+        "(Minimal)": "(极低)", "(Low)": "(低)", "(Medium)": "(中等)", "(High)": "(高)",
+        "(XHigh)": "(超高)", "(Extra High)": "(超高)", "(Max)": "(最高)", "(Orchestrator)": "(编排器)"
+      };
       return value.replace(trimmed, `${modelEffortMatch[1]} ${effortMap[modelEffortMatch[2]]}`);
     }
     let resetsEveryMatch = trimmed.match(/^Resets every\s+(.+)$/i);
@@ -1579,13 +1585,19 @@
     if (tokMatch) return value.replace(trimmed, `Tokens remaining: ${tokMatch[1]}`);
     let planRestore = trimmed.match(/^当前方案：\s*(.+)$/);
     if (planRestore) return value.replace(trimmed, `Your Plan: ${planRestore[1]}`);
+    let availPlanRestore = trimmed.match(/^(.+?)\s+目前仅向\s+(.+?)\s+方案订阅用户开放。$/);
+    if (availPlanRestore) return value.replace(trimmed, `${availPlanRestore[1]} is currently available to ${availPlanRestore[2]} plan subscribers.`);
     let weeklyLimitRestore = trimmed.match(/^(.+?)\s+每周额度$/);
     if (weeklyLimitRestore) return value.replace(trimmed, `${weeklyLimitRestore[1]} Weekly Limit`);
     let fiveHourLimitRestore = trimmed.match(/^(.+?)\s+五小时额度$/);
     if (fiveHourLimitRestore) return value.replace(trimmed, `${fiveHourLimitRestore[1]} Five Hour Limit`);
-    let modelEffortRestore = trimmed.match(/^((?:Gemini|Claude|GPT)[^\n]*?)\s+(极低|低|中等|高|超高)$/);
+    let modelEffortRestore = trimmed.match(/^((?:Gemini|Claude|GPT)[^\n]*?)\s+(\((?:极低|低|中等|高|超高|最高|编排器)\)|极低|低|中等|高|超高)$/);
     if (modelEffortRestore) {
-      const effortEnMap = { "极低": "Minimal", "低": "Low", "中等": "Medium", "高": "High", "超高": "Extra High" };
+      const effortEnMap = {
+        "极低": "Minimal", "低": "Low", "中等": "Medium", "高": "High", "超高": "Extra High",
+        "(极低)": "(Minimal)", "(低)": "(Low)", "(中等)": "(Medium)", "(高)": "(High)",
+        "(超高)": "(Extra High)", "(最高)": "(Max)", "(编排器)": "(Orchestrator)"
+      };
       return value.replace(trimmed, `${modelEffortRestore[1]} ${effortEnMap[modelEffortRestore[2]]}`);
     }
     let shortcutMatch = trimmed.match(/^((?:(?:Ctrl|Alt|Cmd|Option|Shift|Enter|\+)\s*)+)\s+(当前轮次结束后排队|立即发送|提示词为空时，发送队列中的下一条)$/);

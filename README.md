@@ -12,22 +12,23 @@
 
 ### Windows 用户使用
 
-1. 从 [Releases](https://github.com/CX-ARTLab/antigravity-zh-assistant/releases/latest) 下载最新版本的 `AntigravityZhAssistant-windows.zip`。
+1. 从 [Releases](https://github.com/CX-ArtLab/antigravity-zh-assistant/releases/latest) 下载最新版本的 `AntigravityZhAssistant-windows.zip`。
 2. 将 ZIP 解压到任意文件夹。无需安装开发环境，也不需要将 EXE 放入 Antigravity 安装目录。
-3. 先启动 Antigravity，再运行解压后的 `AntigravityZhAssistant.exe`。
-4. 点击主卡片中的 **“立即应用汉化”** 状态胶囊按钮即可一键完成汉化。
-5. 助手支持“后台监控”、“自动适配新词条”、“自动更新词典”与“随 Windows 启动”，启动后可常驻系统托盘静默守护。
+3. 运行解压后的 `AntigravityZhAssistant.exe`，点击主卡片按钮（默认显示 **“尚未汉化”**），助手会自动以开启本地调试接口（`--remote-debugging-port=0`）的方式启动 Antigravity 并完成汉化。
+   - 若你此前已自行打开了 Antigravity（`2.33.0+` 默认不开启调试接口），点击主按钮后会提示是否由助手重启 Antigravity 以开启调试接口并应用汉化。
+4. 汉化成功后按钮会变为 **“✓ 汉化已生效”**（再次点击可一键恢复原版英文）。
+5. 勾选界面中的 **“自动更新”** 与 **“开机启动”** 即可后台同步最新词典并随系统启动；点击底部的 **“更新词典”** 可随时手动在线拉取最新词库。
 
 > **便携版程序**：本程序为单文件绿色免安装应用，移动整个解压文件夹即可移动助手，卸载时在助手内点击恢复原版后直接删除该文件夹即可。
 
 ### macOS 用户使用（Apple Silicon）
 
-1. 从 [Releases](https://github.com/CX-ARTLab/antigravity-zh-assistant/releases/latest) 下载最新版本的 `AntigravityZhAssistant-macOS-apple-silicon.zip`。
+1. 从 [Releases](https://github.com/CX-ArtLab/antigravity-zh-assistant/releases/latest) 下载最新版本的 `AntigravityZhAssistant-macOS-apple-silicon.zip`。
 2. 双击解压得到 `AntigravityZhAssistant-macOS-apple-silicon.app`，将其拖入 **“访达 (Finder) -> 应用程序 (/Applications)”** 中。
-3. 打开助手，点击 **“启动并汉化”**。助手可以连接已经可用的调试接口，也可以用进程之间的私有管道启动 Antigravity。用私有管道启动时无需开放 TCP 调试端口。
-4. 如需开机自启或同步最新词典，勾选界面中的“随系统启动”与“自动加载最新汉化包”即可。
+3. 打开助手，点击主卡片按钮（默认显示 **“尚未汉化”**）。助手可以连接已经可用的调试接口，也可以用进程之间的私有管道启动 Antigravity（用私有管道启动时无需开放 TCP 调试端口）。
+4. 如需同步最新词典或开机自启，勾选界面中的 **“自动更新”** 与 **“开机启动”** 即可；点击底部的 **“更新词典”** 可随时手动在线更新词库。
 
-如果 Antigravity 已经打开，但没有可连接的调试接口，请保存工作，退出 Antigravity 后再点「启动并汉化」。助手会在退出时提醒你保存工作，因为关闭私有管道也会关闭它启动的 Antigravity。强制退出助手也可能关闭 Antigravity，建议先保存工作。
+如果 Antigravity 已经打开，但没有可连接的调试接口，请保存工作，退出 Antigravity 后再点击助手主按钮启动。助手会在退出时提醒你保存工作，因为关闭私有管道也会关闭它启动的 Antigravity。强制退出助手也可能关闭 Antigravity，建议先保存工作。
 
 > **Gatekeeper 安全提示**：由于开源程序未购买 Apple 开发者企业签名证书，若首次打开弹出安全提示，可前往 **“系统设置 -> 隐私与安全性”** 点击 **“仍要打开”**；或在终端中执行：
 > ```bash
@@ -75,7 +76,7 @@
 .\build.ps1
 ```
 
-生成的单文件便携程序位于 `dist/AntigravityZhAssistant.exe`，并会自动打包生成 `dist/AntigravityZhAssistant-windows.zip`。项目使用 Windows 自带的 .NET Framework C# 编译器（`csc.exe`），无需安装 Visual Studio、.NET SDK、Node.js 或 Python 等额外开发环境。
+生成的单文件便携程序位于 `dist/AntigravityZhAssistant.exe`（发布时的 `AntigravityZhAssistant-windows.zip` 由 GitHub Actions 工作流打包生成）。项目使用 Windows 自带的 .NET Framework C# 编译器（`csc.exe`），无需安装 Visual Studio、.NET SDK、Node.js 或 Python 等额外开发环境。
 
 ### macOS 版本编译
 
@@ -89,13 +90,16 @@ bash macOS/build-macos.sh
 
 ---
 
-## 词典包说明
+## 词典包与更新说明
 
 - 翻译词典源文件位于 [`translation/`](translation/)：
   - `translation-pack.json`：打包的完整词典集合（包含前端界面、弹窗、设置与快捷键词条）。
-  - `manifest.json`：词典版本控制与云端更新元数据。
+  - `manifest.json`：词典版本控制、适配的官方 Antigravity 版本与云端更新元数据。
 - 发布版会直接把构建时的完整词典内嵌打包进应用，完全离线即可使用。
-- 开启“自动更新”后，程序会自动检测并优先加载用户数据目录中的最新更新词典。
+- 每次 Release 会在顶部标明更新类型：
+  - **💡 词典更新（在线生效，无需下载）**：仅新增或修正词条，已安装主程序的用户开启 **“自动更新”** 或点击界面底部的 **“更新词典”** 即可直接生效，无需重新下载主程序。
+  - **⚠️ 主程序更新（需重新下载）**：包含主程序或动态脚本逻辑改动，请前往 Releases 下载新版替换本地程序。
+- **已知范围限制**：由于本程序采用免改官方安装包的纯内存网页 DOM 注入方案，**操作系统原生菜单**（例如聊天列表中的黑色系统右键菜单、macOS 顶部系统菜单栏）不经过网页 DOM，暂无法汉化。
 
 ---
 

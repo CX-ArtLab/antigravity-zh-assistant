@@ -13,6 +13,7 @@ using System.Net.WebSockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
@@ -23,8 +24,8 @@ using Microsoft.Win32;
 [assembly: AssemblyDescription("Google Antigravity 离线界面汉化伴侣")]
 [assembly: AssemblyCompany("Local Companion")]
 [assembly: AssemblyProduct("Antigravity 中文助手")]
-[assembly: AssemblyVersion("0.6.37.0")]
-[assembly: AssemblyFileVersion("0.6.37.0")]
+[assembly: AssemblyVersion("0.6.38.0")]
+[assembly: AssemblyFileVersion("0.6.38.0")]
 
 namespace AntigravityZhAssistant
 {
@@ -88,9 +89,11 @@ namespace AntigravityZhAssistant
         private Button startButton;
         private Button hideButton;
         private CheckBox startupCheckBox;
+        private CheckBox seamlessCheckBox;
         private CheckBox monitorCheckBox;
         private CheckBox adaptCheckBox;
         private CheckBox packUpdateCheckBox;
+        private ToolTip uiToolTip;
         private Label versionLabel;
         private Label unknownLabel;
         private Label scanLabel;
@@ -100,6 +103,7 @@ namespace AntigravityZhAssistant
         private LinkLabel updatePackLink;
         private readonly NotifyIcon trayIcon;
         private readonly ToolStripMenuItem trayStartupItem;
+        private readonly ToolStripMenuItem traySeamlessItem;
         private readonly System.Windows.Forms.Timer monitorTimer;
         private readonly HttpClient localHttp;
         private readonly HttpClient updateHttp;
@@ -150,7 +154,7 @@ namespace AntigravityZhAssistant
             localHttp.Timeout = TimeSpan.FromSeconds(4);
             updateHttp = new HttpClient();
             updateHttp.Timeout = TimeSpan.FromSeconds(8);
-            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.37");
+            updateHttp.DefaultRequestHeaders.UserAgent.ParseAdd("AntigravityZhAssistant/0.6.38");
 
             Text = AppName;
             StartPosition = FormStartPosition.CenterScreen;
@@ -345,6 +349,11 @@ namespace AntigravityZhAssistant
             trayStartupItem.Checked = startupCheckBox.Checked;
             trayStartupItem.CheckedChanged += TrayStartupChanged;
             trayMenu.Items.Add(trayStartupItem);
+            traySeamlessItem = new ToolStripMenuItem("无感启动");
+            traySeamlessItem.CheckOnClick = true;
+            traySeamlessItem.Checked = seamlessCheckBox.Checked;
+            traySeamlessItem.CheckedChanged += TraySeamlessChanged;
+            trayMenu.Items.Add(traySeamlessItem);
             trayMenu.Items.Add(new ToolStripSeparator());
             ToolStripMenuItem exitItem = new ToolStripMenuItem("退出助手");
             exitItem.Click += delegate { ExitAssistant(); };
@@ -370,6 +379,10 @@ namespace AntigravityZhAssistant
             Shown += async delegate
             {
                 initialized = true;
+                if (GetSetting("SeamlessLaunch", false))
+                {
+                    try { SetSeamlessLaunchShortcuts(true); } catch { }
+                }
                 if (packUpdateCheckBox.Checked) await TryUpdateTranslationPackAsync();
                 if (this.startupMode)
                 {
@@ -463,7 +476,7 @@ namespace AntigravityZhAssistant
             adaptCheckBox.Text = "自动更新";
             adaptCheckBox.Font = new Font("Microsoft YaHei UI", 12F * uiScale, FontStyle.Regular, GraphicsUnit.Pixel);
             adaptCheckBox.Checked = GetSetting("AutoAdapt", true) && GetSetting("AutoPack", true);
-            adaptCheckBox.SetBounds(U(86), U(123), U(80), U(24));
+            adaptCheckBox.SetBounds(U(32), U(123), U(82), U(24));
             onboardingCard.Controls.Add(adaptCheckBox);
 
             packUpdateCheckBox = new CheckBox();
@@ -474,8 +487,17 @@ namespace AntigravityZhAssistant
             startupCheckBox.Text = "开机启动";
             startupCheckBox.Font = new Font("Microsoft YaHei UI", 12F * uiScale, FontStyle.Regular, GraphicsUnit.Pixel);
             startupCheckBox.Checked = IsAutoStartEnabled();
-            startupCheckBox.SetBounds(U(178), U(123), U(80), U(24));
+            startupCheckBox.SetBounds(U(131), U(123), U(82), U(24));
             onboardingCard.Controls.Add(startupCheckBox);
+
+            seamlessCheckBox = new SoftCheckBox();
+            seamlessCheckBox.Text = "无感启动";
+            seamlessCheckBox.Font = new Font("Microsoft YaHei UI", 12F * uiScale, FontStyle.Regular, GraphicsUnit.Pixel);
+            seamlessCheckBox.Checked = GetSetting("SeamlessLaunch", false);
+            seamlessCheckBox.SetBounds(U(230), U(123), U(82), U(24));
+            if (uiToolTip == null) uiToolTip = new ToolTip();
+            uiToolTip.SetToolTip(seamlessCheckBox, "托管桌面、开始菜单与任务栏快捷方式参数，直接点击官方图标启动即可自动汉化；关闭时自动还原。");
+            onboardingCard.Controls.Add(seamlessCheckBox);
 
             hideButton = new Button();
             hideButton.Visible = false;
@@ -483,6 +505,7 @@ namespace AntigravityZhAssistant
             adaptCheckBox.CheckedChanged += AutomationSettingChanged;
             packUpdateCheckBox.CheckedChanged += AutomationSettingChanged;
             startupCheckBox.CheckedChanged += StartupCheckBoxChanged;
+            seamlessCheckBox.CheckedChanged += SeamlessCheckBoxChanged;
 
             lastAntigravityVersion = GetAntigravityVersion();
             UpdateMetrics();
@@ -1768,6 +1791,154 @@ namespace AntigravityZhAssistant
             startupCheckBox.Checked = trayStartupItem.Checked;
         }
 
+        private void SeamlessCheckBoxChanged(object sender, EventArgs e)
+        {
+            if (!initialized) return;
+            bool enabled = seamlessCheckBox.Checked;
+            try
+            {
+                SetSetting("SeamlessLaunch", enabled);
+                if (traySeamlessItem != null)
+                {
+                    traySeamlessItem.CheckedChanged -= TraySeamlessChanged;
+                    traySeamlessItem.Checked = enabled;
+                    traySeamlessItem.CheckedChanged += TraySeamlessChanged;
+                }
+                SetSeamlessLaunchShortcuts(enabled);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("无法修改无感启动快捷方式：" + ex.Message, AppName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void TraySeamlessChanged(object sender, EventArgs e)
+        {
+            if (!initialized) return;
+            seamlessCheckBox.Checked = traySeamlessItem.Checked;
+        }
+
+        private static List<string> GetAntigravityShortcutDirectories()
+        {
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string commonAppData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            string[] candidates = new string[]
+            {
+                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
+                Path.Combine(appData, @"Microsoft\Windows\Start Menu\Programs"),
+                Path.Combine(commonAppData, @"Microsoft\Windows\Start Menu\Programs"),
+                Path.Combine(appData, @"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar")
+            };
+            List<string> dirs = new List<string>();
+            foreach (string dir in candidates)
+            {
+                if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                    dirs.Add(dir);
+            }
+            return dirs;
+        }
+
+        private static List<string> GetLnkFilesSafe(string rootDir)
+        {
+            List<string> files = new List<string>();
+            Stack<string> stack = new Stack<string>();
+            stack.Push(rootDir);
+            while (stack.Count > 0)
+            {
+                string current = stack.Pop();
+                try
+                {
+                    foreach (string file in Directory.GetFiles(current, "*.lnk"))
+                        files.Add(file);
+                }
+                catch { }
+                try
+                {
+                    foreach (string sub in Directory.GetDirectories(current))
+                        stack.Push(sub);
+                }
+                catch { }
+            }
+            return files;
+        }
+
+        private static int SetSeamlessLaunchShortcuts(bool enable)
+        {
+            Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType == null) return 0;
+            object shell = null;
+            int updatedCount = 0;
+            try
+            {
+                shell = Activator.CreateInstance(shellType);
+                foreach (string dir in GetAntigravityShortcutDirectories())
+                {
+                    foreach (string lnkPath in GetLnkFilesSafe(dir))
+                    {
+                        object shortcut = null;
+                        try
+                        {
+                            shortcut = shellType.InvokeMember("CreateShortcut",
+                                BindingFlags.InvokeMethod, null, shell, new object[] { lnkPath });
+                            if (shortcut == null) continue;
+                            Type scType = shortcut.GetType();
+                            string targetPath = Convert.ToString(scType.InvokeMember("TargetPath",
+                                BindingFlags.GetProperty, null, shortcut, null)) ?? string.Empty;
+                            string leaf = Path.GetFileName(targetPath);
+                            if (!string.Equals(leaf, "Antigravity.exe", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(leaf, "Antigravity - Insiders.exe", StringComparison.OrdinalIgnoreCase))
+                            {
+                                continue;
+                            }
+
+                            string origArgs = Convert.ToString(scType.InvokeMember("Arguments",
+                                BindingFlags.GetProperty, null, shortcut, null)) ?? string.Empty;
+                            if (enable)
+                            {
+                                if (origArgs.IndexOf("--remote-debugging-port", StringComparison.OrdinalIgnoreCase) < 0)
+                                {
+                                    string nextArgs = string.IsNullOrWhiteSpace(origArgs)
+                                        ? "--remote-debugging-port=0"
+                                        : origArgs.Trim() + " --remote-debugging-port=0";
+                                    scType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, new object[] { nextArgs });
+                                    scType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
+                                    updatedCount++;
+                                }
+                            }
+                            else
+                            {
+                                string cleaned = Regex.Replace(origArgs, @"(^|\s)--remote-debugging-port(?:=\d+)?(?=\s|$)", " ", RegexOptions.IgnoreCase);
+                                cleaned = Regex.Replace(cleaned, @"\s{2,}", " ").Trim();
+                                if (!string.Equals(cleaned, origArgs.Trim(), StringComparison.Ordinal))
+                                {
+                                    scType.InvokeMember("Arguments", BindingFlags.SetProperty, null, shortcut, new object[] { cleaned });
+                                    scType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
+                                    updatedCount++;
+                                }
+                            }
+                        }
+                        catch { }
+                        finally
+                        {
+                            if (shortcut != null && Marshal.IsComObject(shortcut))
+                            {
+                                try { Marshal.FinalReleaseComObject(shortcut); } catch { }
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (shell != null && Marshal.IsComObject(shell))
+                {
+                    try { Marshal.FinalReleaseComObject(shell); } catch { }
+                }
+            }
+            return updatedCount;
+        }
+
         private static bool IsAutoStartEnabled()
         {
             using (RegistryKey key = Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run"))
@@ -1887,6 +2058,7 @@ namespace AntigravityZhAssistant
         {
             if (disposing)
             {
+                if (uiToolTip != null) uiToolTip.Dispose();
                 monitorTimer.Dispose();
                 trayIcon.Dispose();
                 localHttp.Dispose();

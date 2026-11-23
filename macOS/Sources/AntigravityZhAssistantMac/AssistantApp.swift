@@ -4,7 +4,7 @@ import Foundation
 import Darwin
 
 private let appName = "Antigravity 中文助手"
-private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.37"
+private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.38"
 private let manifestURL = URL(string: "https://raw.githubusercontent.com/CX-ARTLab/antigravity-zh-assistant/main/translation/manifest.json")!
 
 private func assistantIconImage() -> NSImage {
@@ -159,6 +159,7 @@ private final class AppModel: ObservableObject {
     @Published var isBusy = false
     @Published var autoUpdate: Bool
     @Published var launchAtLogin: Bool
+    @Published var seamlessLaunch: Bool
     @Published var antigravityVersion = "未检测"
     @Published var unknownCount = 0
 
@@ -168,18 +169,21 @@ private final class AppModel: ObservableObject {
     private let discovery = DevToolsDiscovery()
     private var privateDevTools: PrivateDevTools?
     private var localizationPaused = false
+    private var relaunchedPIDs = Set<pid_t>()
+    private var lastRelaunchAt: Date = .distantPast
 
     var managesAntigravity: Bool { privateDevTools?.isRunning == true }
 
     init() {
         autoUpdate = UserDefaults.standard.object(forKey: "AutoUpdate") as? Bool ?? true
         launchAtLogin = LaunchAtLogin.isEnabled
+        seamlessLaunch = UserDefaults.standard.bool(forKey: "SeamlessLaunch")
         translationPack = Self.loadTranslationPack()
         antigravityVersion = detectAntigravityVersion()
         monitorTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 3_000_000_000)
-                guard let self, self.autoUpdate, !self.isBusy, !self.localizationPaused else { continue }
+                guard let self, (self.autoUpdate || self.seamlessLaunch), !self.isBusy, !self.localizationPaused else { continue }
                 await self.applyLocalization(silent: true)
             }
         }
@@ -194,7 +198,22 @@ private final class AppModel: ObservableObject {
         status = "正在连接"
         detail = "正在连接 Antigravity 并应用汉化……"
         do {
-            let targets = try await findTargets(allowLaunch: !silent)
+            let targets: [DevToolsTarget]
+            do {
+                targets = try await findTargets(allowLaunch: !silent)
+            } catch AssistantError.restartRequired where seamlessLaunch {
+                guard await tryColdStartRelayIfNeeded() else { throw AssistantError.restartRequired }
+                var relayedTargets: [DevToolsTarget]?
+                for _ in 0..<12 {
+                    if let found = try? await discovery.targets() {
+                        relayedTargets = found
+                        break
+                    }
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                }
+                guard let resolved = relayedTargets else { throw AssistantError.noTarget }
+                targets = resolved
+            }
             if !silent { localizationPaused = false }
             var updateFailed = false
             if autoUpdate {
@@ -314,6 +333,52 @@ private final class AppModel: ObservableObject {
         launchAtLogin = value
         UserDefaults.standard.set(value, forKey: "LaunchAtLogin")
         LaunchAtLogin.setEnabled(value)
+    }
+
+    func setSeamlessLaunch(_ value: Bool) {
+        seamlessLaunch = value
+        UserDefaults.standard.set(value, forKey: "SeamlessLaunch")
+    }
+
+    private func tryColdStartRelayIfNeeded() async -> Bool {
+        guard seamlessLaunch, privateDevTools == nil else { return false }
+        guard Date().timeIntervalSince(lastRelaunchAt) >= 60 else { return false }
+        let identifier = "com.google.antigravity"
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
+        let now = Date()
+        guard let candidate = running.first(where: { app in
+            guard !relaunchedPIDs.contains(app.processIdentifier),
+                  let launched = app.launchDate else { return false }
+            let uptime = now.timeIntervalSince(launched)
+            return uptime >= 2.0 && uptime <= 12.0
+        }) else {
+            return false
+        }
+        guard let appURL = candidate.bundleURL ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) else {
+            return false
+        }
+
+        relaunchedPIDs.insert(candidate.processIdentifier)
+        lastRelaunchAt = now
+        _ = candidate.terminate()
+
+        let deadline = Date().addingTimeInterval(3.0)
+        while !candidate.isTerminated && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 150_000_000)
+        }
+        guard candidate.isTerminated else { return false }
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = ["-a", appURL.path, "--args", "--remote-debugging-port=0"]
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {
+            return false
+        }
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        return true
     }
 
     private func updateTranslationPack() async throws {
@@ -602,9 +667,11 @@ private struct ContentView: View {
                     .tint(Color(red: 0.52, green: 0.18, blue: 0.93))
                     .padding(.horizontal, 28)
                     .padding(.top, 18)
-                    HStack(spacing: 24) {
+                    HStack(spacing: 16) {
                         Toggle("自动更新", isOn: Binding(get: { model.autoUpdate }, set: model.setAutoUpdate))
                         Toggle("开机启动", isOn: Binding(get: { model.launchAtLogin }, set: model.setLaunchAtLogin))
+                        Toggle("无感启动", isOn: Binding(get: { model.seamlessLaunch }, set: model.setSeamlessLaunch))
+                            .help("冷启动官方 Antigravity 时自动接力开启调试接口并汉化，不中断已运行超过 12 秒的会话。")
                     }
                     .toggleStyle(.checkbox)
                     .font(.system(size: 14))

@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.37";
+  const VERSION = "0.6.38";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -690,19 +690,45 @@
     "subagent": "子智能体"
   });
 
-  const skippedSelector = [
+  const DICT = Object.assign(Object.create(null), extraDictionary, dictionary);
+
+  const skippedSelectorList = [
     "textarea",
     "input",
     "pre",
     "code",
+    "kbd",
+    "samp",
+    "style",
+    "script",
+    "noscript",
     "[contenteditable='true']",
     "[role='textbox']",
     ".code-line",
     "[data-file-uri]",
     "[data-diff-type]",
     "[data-line-start]",
-    ".token"
-  ].join(",");
+    ".token",
+    "[data-markdown-root]",
+    "[data-testid='user-message-content']",
+    ".agy-user-bubble",
+    ".prose",
+    ".markdown",
+    "[class*='chat-message']",
+    ".monaco-editor",
+    ".monaco-diff-editor",
+    ".xterm",
+    "[class*='onyx-key']",
+    "[data-testid='conversation-row-sidebar'] a[href^='/c/']",
+    "[data-testid='conversation-row-sidebar'] span.truncate",
+    "[data-testid='conversation-row-history'] a[href^='/c/']",
+    "[data-testid='conversation-row-history'] span.truncate",
+    "[data-testid='conversation-navigator-turn']"
+  ];
+  const skippedSelector = skippedSelectorList.join(",");
+  const attrSkippedSelector = skippedSelectorList
+    .filter((s) => s !== "textarea" && s !== "input" && s !== "[contenteditable='true']" && s !== "[role='textbox']")
+    .join(",");
 
   // Skill descriptions are located by their stable technical identifiers.
   // This keeps the Chinese UI useful even when upstream English copy changes.
@@ -767,6 +793,8 @@
     "spanner-data": "探索 Spanner 数据库结构、发现表和图等对象，并执行自定义 SQL 查询。",
     "automation": "交互式引导设计并创建定时后台自动化任务（如定时汇总邮件、每周待办等）。",
     "generative_ui": "在对话内或独立工件中渲染丰富的交互式 HTML 微件、图表、数据可视化与教育引导。",
+    "mcp-app-development": "为 Antigravity 构建、打包和调试 MCP 应用：将 MCP 服务器工具的结果以交互式界面渲染在对话、侧边面板或侧边栏全屏页面中。",
+    "migrate-agent-settings": "将其他编程智能体（Claude Code、Codex、Cursor、Gemini CLI）中的 MCP 服务器、技能、斜杠命令、子智能体及指令文件迁移为一个新的 Antigravity 插件。",
     "migrate-workflows": "自动将旧版工作流迁移为全局或工作区标准技能，安全归档旧工作流文件。",
     "permissioned-github": "与 GitHub 进行交互的操作规范；当命令因智能体环境限制而失败时向用户请求权限。",
     "run-workflow": "编写并运行动态工作流脚本，通过 Python 脚本和 agent、parallel、pipeline、phase 等机制协调多个智能体协作。",
@@ -781,21 +809,26 @@
     "ui-plugin-navigation": "发现与当前任务相关的 UI 插件面板，并在对话中提供一键在侧边面板打开/切换的快捷入口。"
   });
 
-  const originalTextNodes = new Map();
-  const originalAttributes = new Map();
+  const originalTextNodes = window.__agZhOrigTextMap || (window.__agZhOrigTextMap = new WeakMap());
+  const originalAttributes = window.__agZhOrigAttrMap || (window.__agZhOrigAttrMap = new WeakMap());
 
   function setTranslatedText(node, value) {
-    if (!originalTextNodes.has(node)) originalTextNodes.set(node, node.nodeValue);
-    node.nodeValue = value;
+    const current = node.nodeValue;
+    const rec = originalTextNodes.get(node);
+    const orig = rec && rec.last === current ? rec.orig : current;
+    originalTextNodes.set(node, { orig, last: value, sig: PACK_SIGNATURE });
+    if (current !== value) node.nodeValue = value;
   }
 
-  function rememberAttribute(element, attribute, value) {
+  function rememberAttribute(element, attribute, original, translated) {
     let values = originalAttributes.get(element);
     if (!values) {
       values = new Map();
       originalAttributes.set(element, values);
     }
-    if (!values.has(attribute)) values.set(attribute, value);
+    const rec = values.get(attribute);
+    const orig = rec && rec.last === original ? rec.orig : original;
+    values.set(attribute, { orig, last: translated, sig: PACK_SIGNATURE });
   }
 
   function translateSkillCard(nameNode, summary) {
@@ -810,25 +843,40 @@
     for (let index = start + 1; index < Math.min(nodes.length, start + 30); index++) {
       const candidate = nodes[index];
       if (shouldSkip(candidate)) continue;
+      const rec = originalTextNodes.get(candidate);
+      if (rec && rec.last === candidate.nodeValue) {
+        if (rec.sig === PACK_SIGNATURE) return;
+        const origText = rec.orig.trim();
+        setTranslatedText(candidate, rec.orig.replace(origText, () => summary));
+        return;
+      }
       const text = (candidate.nodeValue || "").trim();
       if (!text || text === "Global" || text === "全局") continue;
       if (Object.prototype.hasOwnProperty.call(skillSummaries, text)) return;
       if (text.length < 20) continue;
-      setTranslatedText(candidate, candidate.nodeValue.replace(text, summary));
+      setTranslatedText(candidate, candidate.nodeValue.replace(text, () => summary));
       return;
     }
   }
 
   function translateSkillCards(root) {
     const scope = root && root.nodeType === Node.TEXT_NODE ? root.parentElement : root;
-    if (!scope || !scope.ownerDocument && scope !== document) return;
+    if (!scope || (!scope.ownerDocument && scope !== document)) return;
+    const targets = [];
+    if (scope.closest && scope.closest("[role='dialog']")) {
+      targets.push(scope);
+    } else if (scope.querySelectorAll) {
+      scope.querySelectorAll("[role='dialog']").forEach((d) => targets.push(d));
+    }
+    if (targets.length === 0) return;
     const names = [];
-    if (scope.nodeType === Node.TEXT_NODE && Object.prototype.hasOwnProperty.call(skillSummaries, scope.nodeValue.trim())) names.push(scope);
-    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
-    let node;
-    while ((node = walker.nextNode())) {
-      const name = (node.nodeValue || "").trim();
-      if (Object.prototype.hasOwnProperty.call(skillSummaries, name)) names.push(node);
+    for (const target of targets) {
+      const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const name = (node.nodeValue || "").trim();
+        if (Object.prototype.hasOwnProperty.call(skillSummaries, name)) names.push(node);
+      }
     }
     for (const nameNode of names) translateSkillCard(nameNode, skillSummaries[nameNode.nodeValue.trim()]);
   }
@@ -836,6 +884,7 @@
   function translateDuration(str) {
     if (!str) return "";
     let s = str.trim();
+    if (s === "<1m" || s === "< 1m") return "不到 1 分钟";
     let compact = s.match(/^(\d+d)?\s*(\d+h)?\s*(\d+m)?\s*(\d+s)?$/i);
     if (compact && (compact[1] || compact[2] || compact[3] || compact[4])) {
       let parts = [];
@@ -891,19 +940,120 @@
     return str;
   }
 
-  function translateExact(value) {
+  function resolveContextualTranslation(trimmed, contextEl, baseVal) {
+    if (!contextEl || typeof contextEl.closest !== "function") return baseVal;
+    if (trimmed === "Plan" && baseVal === "计划" && contextEl.closest("[role='dialog']")) {
+      return "方案套餐";
+    }
+    if (trimmed === "Default") {
+      if (contextEl.closest("[data-testid='permissions-default-tag']")) {
+        return "全局默认";
+      }
+      if (contextEl.closest("[data-testid='permissions-preset-option-default'], [data-testid='permissions-selector-trigger']")) {
+        return "敏感确认 (Default)";
+      }
+      const permOpt = contextEl.closest("[role='option'], [role='menuitem']");
+      const optTxt = permOpt ? permOpt.textContent || "" : "";
+      if (optTxt.includes("Ask before sensitive operations") || optTxt.includes("执行敏感操作前")) {
+        return "敏感确认 (Default)";
+      }
+    }
+    if (
+      trimmed === "View" &&
+      baseVal === "视图" &&
+      contextEl.closest("button") &&
+      !contextEl.closest("[aria-haspopup], [role='menuitem'], [role='menu'], header")
+    ) {
+      return "查看";
+    }
+    if (trimmed === "Actions" && baseVal === "操作") {
+      const menuContainer = contextEl.closest("[role='menu'], [data-radix-popper-content-wrapper]");
+      if (menuContainer && !contextEl.closest("[role='dialog'], [cmdk-list]")) {
+        const mTxt = menuContainer.textContent || "";
+        if (mTxt.includes("Mentions") || mTxt.includes("提及引用") || mTxt.includes("Add Context") || mTxt.includes("添加上下文")) {
+          return "快捷指令 (/)";
+        }
+      }
+    }
+    if (trimmed === "Blocked" && baseVal === "已阻塞" && !contextEl.closest("[data-testid='conversation-row-sidebar']")) {
+      const aria = contextEl.getAttribute ? contextEl.getAttribute("aria-label") || "" : "";
+      if (aria.startsWith("Blocked") || contextEl.closest("[class*='destructive']")) {
+        return "已受限";
+      }
+    }
+    return baseVal;
+  }
+
+  function formatQuotaModelZh(rawModel) {
+    const m = String(rawModel || "").trim();
+    return !m || /^this model$/i.test(m) ? "该模型" : m;
+  }
+
+  function translateQuotaExhaustedZh(trimmed) {
+    if (!trimmed || (!trimmed.includes("quota") && !trimmed.includes("AI Credit"))) return null;
+    const mReset = trimmed.match(/^Your quota for (.+?) will reset on (.+?)\.\s*Switch to another available model to continue\.?$/i);
+    if (mReset) {
+      const mod = formatQuotaModelZh(mReset[1]);
+      return (mod === "该模型" ? "该模型" : mod + " ") + "的配额将于 " + mReset[2].trim() + " 重置。请切换至其他可用模型继续。";
+    }
+    const mReached = trimmed.match(/^Your quota for (.+?) has been reached\.\s*Switch to another available model to continue\.?$/i);
+    if (mReached) {
+      const mod = formatQuotaModelZh(mReached[1]);
+      return (mod === "该模型" ? "该模型" : mod + " ") + "的配额已用尽。请切换至其他可用模型继续。";
+    }
+
+    let rest = trimmed;
+    const parts = [];
+    const mCredits = rest.match(/^You need (?:at least (\d+)|more) AI Credits to send messages\.\s*To continue using (.+?) now, purchase more AI Credits\.?\s*/i);
+    if (mCredits) {
+      const needPart = mCredits[1] ? "至少 " + mCredits[1] + " " : "更多 ";
+      const mod = formatQuotaModelZh(mCredits[2]);
+      parts.push("发送消息需要" + needPart + "AI 点数。如需立即继续使用" + (mod === "该模型" ? "该模型" : " " + mod) + "，请购买更多 AI 点数。");
+      rest = rest.slice(mCredits[0].length);
+    }
+    const mRefresh = rest.match(/^Your plan['’]s baseline quota will refresh on (.+?)\.(?=\s|$)\s*/i);
+    if (mRefresh) {
+      parts.push("当前方案的基础配额将于 " + mRefresh[1].trim() + " 刷新。");
+      rest = rest.slice(mRefresh[0].length);
+    }
+    const mOver = rest.match(/^To continue using (.+?) now, enable AI Credit overages\.(?=\s|$)\s*/i);
+    if (mOver) {
+      const mod = formatQuotaModelZh(mOver[1]);
+      parts.push("如需立即继续使用" + (mod === "该模型" ? "该模型" : " " + mod) + "，请开启 AI 点数超额抵扣。");
+      rest = rest.slice(mOver[0].length);
+    }
+    if (parts.length === 0) return null;
+
+    rest = rest.trim();
+    if (rest) {
+      const exactRest = DICT[rest] || (rest.endsWith(".") ? DICT[rest.slice(0, -1)] : undefined);
+      if (typeof exactRest === "string") {
+        parts.push(exactRest.endsWith("。") ? exactRest : exactRest + "。");
+      } else {
+        const mUp = rest.match(/^You can upgrade to a (higher )?Google AI (Ultra|Pro) plan to receive (higher|the highest) rate limits\.?$/i);
+        if (mUp) {
+          const higherPrefix = mUp[1] ? "更高的 " : "";
+          const limitDesc = mUp[3].toLowerCase() === "the highest" ? "最高速率配额" : "更高的配额速率限制";
+          parts.push("您可以升级到" + higherPrefix + "Google AI " + mUp[2] + " 方案以获得" + limitDesc + "。");
+        } else {
+          parts.push(rest);
+        }
+      }
+    }
+    return parts.join("");
+  }
+
+  function translateExact(value, contextEl) {
     if (!value) return null;
     const trimmed = value.trim();
     if (!trimmed) return null;
     if (trimmed === "Type") {
       if (/\s$/.test(value)) return value.replace(trimmed, "输入");
-      return value.replace(trimmed, dictionary[trimmed] || "类型");
+      return value.replace(trimmed, DICT[trimmed] || "类型");
     }
-    if (Object.prototype.hasOwnProperty.call(dictionary, trimmed)) {
-      return value.replace(trimmed, dictionary[trimmed]);
-    }
-    if (Object.prototype.hasOwnProperty.call(extraDictionary, trimmed)) {
-      return value.replace(trimmed, extraDictionary[trimmed]);
+    if (typeof DICT[trimmed] === "string") {
+      const resolved = resolveContextualTranslation(trimmed, contextEl, DICT[trimmed]);
+      return value.replace(trimmed, () => resolved);
     }
     let approvalMatch = trimmed.match(/^Thought for (\d+)s$/);
     if (approvalMatch) return value.replace(trimmed, `思考了 ${approvalMatch[1]} 秒`);
@@ -1312,6 +1462,84 @@
     }
     let updatedMatch = trimmed.match(/^Updated\s+(.+)$/i);
     if (updatedMatch) return value.replace(trimmed, `已更新于 ${updatedMatch[1]}`);
+    const quotaZh = translateQuotaExhaustedZh(trimmed);
+    if (quotaZh) return value.replace(trimmed, () => quotaZh);
+    let ariaMatch = trimmed.match(/^Branch, current:\s*(.*)$/i);
+    if (ariaMatch) {
+      const bName = ariaMatch[1].trim();
+      return value.replace(trimmed, () => "分支，当前：" + (bName === "Select branch" ? "选择分支" : bName));
+    }
+    ariaMatch = trimmed.match(/^Select project(?:, current)?:\s*(.*)$/i);
+    if (ariaMatch) {
+      const pName = ariaMatch[1].trim();
+      return value.replace(trimmed, () => "选择项目，当前：" + (/^no project$/i.test(pName) ? "未关联项目" : pName));
+    }
+    ariaMatch = trimmed.match(/^(?:Where the agent runs, current|Select location(?:, current)?):\s*(.*)$/i);
+    if (ariaMatch) {
+      const locName = ariaMatch[1].trim();
+      const mappedLoc = locName === "This Computer" ? "本机" : locName === "Remote" ? "远程" : DICT[locName] || locName;
+      return value.replace(trimmed, () => "智能体运行位置，当前：" + mappedLoc);
+    }
+    const lookupPerm = (s) => {
+      if (s && s.toLowerCase() === "default") return "敏感确认 (Default)";
+      return DICT[s] || DICT[s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()] || s;
+    };
+    ariaMatch = trimmed.match(/^(?:(?:Permission mode|Agent permissions preset)\s+selector(?:,\s*current)?|(?:Permission mode|Agent permissions preset),\s*current):\s*(.*)$/i);
+    if (ariaMatch) {
+      return value.replace(trimmed, () => "权限模式，当前：" + lookupPerm(ariaMatch[1].trim()));
+    }
+    ariaMatch = trimmed.match(/^(?:Permission mode|Agent permissions preset):\s*([^,(]+?)(?:\s*(?:,\s*(.+?)|\(([^)]+)\)))?$/i);
+    if (ariaMatch) {
+      const pMode = ariaMatch[1].trim();
+      const rawNote = (ariaMatch[2] || ariaMatch[3] || "").trim();
+      if (!rawNote) return value.replace(trimmed, () => "权限模式：" + lookupPerm(pMode));
+      const mappedNote = rawNote.toLowerCase() === "cannot be changed mid-conversation"
+        ? "会话中途无法更改"
+        : DICT[rawNote] || translateExact(rawNote, contextEl) || rawNote;
+      return value.replace(trimmed, () => "权限模式：" + lookupPerm(pMode) + "（" + mappedNote + "）");
+    }
+    ariaMatch = trimmed.match(/^(?:Conversation turn\s+(\d+)\s+by\s+(User|Agent|Assistant)|Turn\s+(\d+)\s+of\s+(\d+))$/i);
+    if (ariaMatch) {
+      if (ariaMatch[3] && ariaMatch[4]) return value.replace(trimmed, `第 ${ariaMatch[3]} / ${ariaMatch[4]} 轮对话`);
+      const roleZh = ariaMatch[2].toLowerCase() === "user" ? "用户" : "智能体";
+      return value.replace(trimmed, `第 ${ariaMatch[1]} 轮对话（${roleZh}）`);
+    }
+    ariaMatch = trimmed.match(/^(?:Load\s+(\d+)\s+older\s+turns?.*|Load older messages,\s*showing\s+(\d+)\s+of\s+(\d+))$/i);
+    if (ariaMatch) {
+      if (ariaMatch[2] && ariaMatch[3]) return value.replace(trimmed, `加载更早的消息（当前显示 ${ariaMatch[2]} / ${ariaMatch[3]}）`);
+      return value.replace(trimmed, `加载更早的 ${ariaMatch[1]} 轮对话`);
+    }
+    let feedbackAsMatch = trimmed.match(/^Send feedback as (.+)$/i);
+    if (feedbackAsMatch) return value.replace(trimmed, () => `以 ${feedbackAsMatch[1]} 的身份发送反馈`);
+    let relAgoMatch = trimmed.match(/^(\d+)\s*(s|sec|secs|m|min|mins|h|hr|hrs|d|w|mo|y|yr|yrs)\s+ago$/i);
+    if (relAgoMatch) {
+      const relUnitMap = {
+        s: "秒", sec: "秒", secs: "秒",
+        m: "分钟", min: "分钟", mins: "分钟",
+        h: "小时", hr: "小时", hrs: "小时",
+        d: "天", w: "周", mo: "个月",
+        y: "年", yr: "年", yrs: "年"
+      };
+      const unit = relUnitMap[relAgoMatch[2].toLowerCase()] || relAgoMatch[2];
+      return value.replace(trimmed, () => `${relAgoMatch[1]} ${unit}前`);
+    }
+    let pctLeftMatch = trimmed.match(/^(\d+(?:\.\d+)?)%\s*left$/i);
+    if (pctLeftMatch) return value.replace(trimmed, () => `${pctLeftMatch[1]}% 剩余`);
+    const unitMapShort = { s: "秒", m: "分钟", h: "小时", d: "天" };
+    let winCombMatch = trimmed.match(/^(\d+)\s*([smhd])\s+limit,\s*resets in\s+(.+)$/i);
+    if (winCombMatch) {
+      const u = unitMapShort[winCombMatch[2].toLowerCase()] || winCombMatch[2];
+      return value.replace(trimmed, () => `${winCombMatch[1]} ${u}额度，将在 ${translateDuration(winCombMatch[3])}后重置`);
+    }
+    let winLimMatch = trimmed.match(/^(\d+)\s*([smhd])\s+limit$/i);
+    if (winLimMatch) {
+      const u = unitMapShort[winLimMatch[2].toLowerCase()] || winLimMatch[2];
+      return value.replace(trimmed, () => `${winLimMatch[1]} ${u}额度`);
+    }
+    let namedLimResetsMatch = trimmed.match(/^(Weekly|Daily|Monthly)\s+limit,\s*resets in\s+(.+)$/i);
+    if (namedLimResetsMatch) {
+      return value.replace(trimmed, () => `${translateLimitName(namedLimResetsMatch[1])}额度，将在 ${translateDuration(namedLimResetsMatch[2])}后重置`);
+    }
     if (AUTO_ADAPT) {
       const composed = translateComposed(trimmed);
       if (composed) return value.replace(trimmed, composed);
@@ -1395,8 +1623,8 @@
       if (/^(?:git|npm|npx|pnpm|yarn|cargo|python|pip|powershell|bash|sh|cmd|curl|wget|dir|ls|cat)\s+/i.test(text)) continue;
       if (Object.prototype.hasOwnProperty.call(skillSummaries, text)) continue;
       if (["Antigravity", "Alt", "Ctrl", "Shift", "Tab", "Google AI Pro", "Google Chrome", "Google3", "notebooks", "visualization", "Previewing Local Project", "Running Application Locally", "Setting Language to Chinese"].includes(text)) continue;
-      if (Object.prototype.hasOwnProperty.call(dictionary, text) || Object.prototype.hasOwnProperty.call(extraDictionary, text)) continue;
-      if (translateExact(text)) continue;
+      if (typeof DICT[text] === "string") continue;
+      if (translateExact(text, node.parentElement)) continue;
       values.add(text);
     }
     return Array.from(values).sort();
@@ -1407,72 +1635,110 @@
     return !element || Boolean(element.closest(skippedSelector));
   }
 
+  function shouldSkipAttrs(element) {
+    if (!element || element.nodeType !== Node.ELEMENT_NODE) return true;
+    return Boolean(element.closest(attrSkippedSelector));
+  }
+
   function translateTextNode(node) {
     if (shouldSkip(node)) return;
-    const text = node.nodeValue;
-    if (text) {
-      const trimmed = text.trim();
-      if (trimmed === "when working") {
-        const next = node.nextSibling;
-        if (next && next.nodeType === Node.TEXT_NODE) {
-          const nextVal = (next.nodeValue || "").trim();
-          if (nextVal.startsWith("in this project") || nextVal.startsWith("in these conversations")) {
-            const isProj = nextVal.includes("project");
-            setTranslatedText(node, isProj ? "（在此项目中）。" : "（在此类对话中）。");
-            setTranslatedText(next, "");
-            const dot = next.nextSibling;
-            if (dot && dot.nodeType === Node.TEXT_NODE && dot.nodeValue.trim() === ".") {
-              setTranslatedText(dot, " ");
-            }
-            return;
+    const current = node.nodeValue;
+    if (!current) return;
+    const rec = originalTextNodes.get(node);
+    if (rec && rec.last === current && rec.sig === PACK_SIGNATURE) return;
+    const text = rec && rec.last === current ? rec.orig : current;
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (trimmed === "when working") {
+      const next = node.nextSibling;
+      if (next && next.nodeType === Node.TEXT_NODE) {
+        const nextRec = originalTextNodes.get(next);
+        const nextVal = (nextRec && nextRec.last === next.nodeValue ? nextRec.orig : (next.nodeValue || "")).trim();
+        if (nextVal.startsWith("in this project") || nextVal.startsWith("in these conversations")) {
+          const isProj = nextVal.includes("project");
+          setTranslatedText(node, isProj ? "（在此项目中）。" : "（在此类对话中）。");
+          setTranslatedText(next, "");
+          const dot = next.nextSibling;
+          if (dot && dot.nodeType === Node.TEXT_NODE && dot.nodeValue.trim() === ".") {
+            setTranslatedText(dot, " ");
           }
-        }
-      }
-      if (trimmed === ".") {
-        const prev = node.previousSibling;
-        if (prev && prev.nodeType === Node.ELEMENT_NODE && (prev.textContent.trim() === "了解更多" || prev.textContent.trim() === "Learn more")) {
-          setTranslatedText(node, "。");
           return;
         }
       }
-      if (trimmed === "and") {
-        const prev = node.previousSibling;
-        const next = node.nextSibling;
-        if (
-          (prev && prev.nodeType === Node.ELEMENT_NODE && /Terms of Service|服务条款/.test(prev.textContent || "")) ||
-          (next && next.nodeType === Node.ELEMENT_NODE && /Google Privacy Policy|Google 隐私权政策/.test(next.textContent || ""))
-        ) {
-          setTranslatedText(node, " 和 ");
-          return;
-        }
-      }
-      if (trimmed.startsWith("Configure allowed and denied URLs for the browser subagent (invoked with /browser). Requires")) {
-        setTranslatedText(node, "配置浏览器子智能体（通过 /browser 调用）允许和拒绝的 URL。需要 ");
-        let sib = node.nextSibling;
-        while (sib) {
-          if (sib.nodeType === Node.TEXT_NODE && sib.nodeValue.trim() === ".") {
-            setTranslatedText(sib, "。");
-            break;
-          }
-          sib = sib.nextSibling;
-        }
+    }
+    if (trimmed === ".") {
+      const prev = node.previousSibling;
+      if (prev && prev.nodeType === Node.ELEMENT_NODE && (prev.textContent.trim() === "了解更多" || prev.textContent.trim() === "Learn more")) {
+        setTranslatedText(node, "。");
         return;
       }
     }
-    const translated = translateExact(node.nodeValue);
-    if (translated && translated !== node.nodeValue) setTranslatedText(node, translated);
+    if (trimmed === "and") {
+      const prev = node.previousSibling;
+      const next = node.nextSibling;
+      if (
+        (prev && prev.nodeType === Node.ELEMENT_NODE && /Terms of Service|服务条款/.test(prev.textContent || "")) ||
+        (next && next.nodeType === Node.ELEMENT_NODE && /Google Privacy Policy|Google 隐私权政策/.test(next.textContent || ""))
+      ) {
+        setTranslatedText(node, " 和 ");
+        return;
+      }
+    }
+    if (trimmed === "Visit") {
+      const next = node.nextSibling;
+      if (next && next.nodeType === Node.ELEMENT_NODE && /Legal Help|法律帮助/.test(next.textContent || "")) {
+        setTranslatedText(node, "访问 ");
+        return;
+      }
+    }
+    if (trimmed.startsWith("Configure allowed and denied URLs for the browser subagent (invoked with /browser). Requires")) {
+      setTranslatedText(node, "配置浏览器子智能体（通过 /browser 调用）允许和拒绝的 URL。需要 ");
+      let sib = node.nextSibling;
+      while (sib) {
+        if (sib.nodeType === Node.TEXT_NODE && sib.nodeValue.trim() === ".") {
+          setTranslatedText(sib, "。");
+          break;
+        }
+        sib = sib.nextSibling;
+      }
+      return;
+    }
+    const translated = translateExact(text, node.parentElement);
+    if (translated) {
+      if (translated !== current || !rec || rec.sig !== PACK_SIGNATURE) {
+        setTranslatedText(node, translated);
+      }
+    } else if (rec && rec.last === current) {
+      node.nodeValue = rec.orig;
+      originalTextNodes.delete(node);
+    }
   }
 
   const translatedAttributes = ["aria-label", "title", "placeholder", "data-tooltip-content", "data-tooltip", "data-title", "aria-description"];
+  const translatedAttrSelector = translatedAttributes.map((a) => `[${a}]`).join(",");
+  const SKIP_ARIA_LABEL_VALUES = new Set(["Cancel"]);
+
   function translateElement(element) {
-    if (!(element instanceof Element)) return;
+    if (!(element instanceof Element) || shouldSkipAttrs(element)) return;
     for (const attribute of translatedAttributes) {
       if (!element.hasAttribute(attribute)) continue;
-      const original = element.getAttribute(attribute);
-      const translated = translateExact(original);
-      if (translated && translated !== original) {
-        rememberAttribute(element, attribute, original);
-        element.setAttribute(attribute, translated);
+      const current = element.getAttribute(attribute);
+      if (!current) continue;
+      if (attribute === "aria-label" && SKIP_ARIA_LABEL_VALUES.has(current.trim())) continue;
+      const attrMap = originalAttributes.get(element);
+      const rec = attrMap && attrMap.get(attribute);
+      if (rec && rec.last === current && rec.sig === PACK_SIGNATURE) continue;
+      const original = rec && rec.last === current ? rec.orig : current;
+      if (attribute === "aria-label" && SKIP_ARIA_LABEL_VALUES.has(original.trim())) continue;
+      const translated = translateExact(original, element);
+      if (translated) {
+        if (translated !== current || !rec || rec.sig !== PACK_SIGNATURE) {
+          rememberAttribute(element, attribute, original, translated);
+          if (current !== translated) element.setAttribute(attribute, translated);
+        }
+      } else if (rec && rec.last === current) {
+        element.setAttribute(attribute, rec.orig);
+        attrMap.delete(attribute);
       }
     }
   }
@@ -1675,6 +1941,7 @@
   }
 
   function restoreLegacy(root) {
+    if (!root) return;
     const reverse = buildReverseDictionary();
     const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let textNode;
@@ -1684,7 +1951,8 @@
       if (restored && restored !== textNode.nodeValue) textNode.nodeValue = restored;
     }
     if (root.querySelectorAll) {
-      root.querySelectorAll("[aria-label],[title],[placeholder],[data-tooltip-content],[data-tooltip],[data-title],[aria-description]").forEach((element) => {
+      root.querySelectorAll(translatedAttrSelector).forEach((element) => {
+        if (shouldSkipAttrs(element)) return;
         for (const attribute of translatedAttributes) {
           if (!element.hasAttribute(attribute)) continue;
           const value = element.getAttribute(attribute);
@@ -1695,65 +1963,147 @@
     }
   }
 
+  const scanFilter = {
+    acceptNode(node) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.matches && node.matches(skippedSelector)) {
+          if ((node.tagName === "INPUT" || node.tagName === "TEXTAREA") && !shouldSkipAttrs(node)) {
+            translateElement(node);
+          }
+          return NodeFilter.FILTER_REJECT;
+        }
+        translateElement(node);
+        return NodeFilter.FILTER_SKIP;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  };
+
   function scan(root) {
     if (!root) return;
-    translateSkillCards(root);
-    if (root.nodeType === Node.TEXT_NODE) translateTextNode(root);
-    if (root.nodeType === Node.ELEMENT_NODE) translateElement(root);
-    const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    if (root.nodeType === Node.TEXT_NODE) {
+      translateTextNode(root);
+      return;
+    }
+    if (root.nodeType !== Node.ELEMENT_NODE && root !== document) return;
+    const scanRoot = root === document ? (document.body || document.documentElement) : root;
+    if (!scanRoot) return;
+    if (scanRoot.nodeType === Node.ELEMENT_NODE && scanRoot.matches && scanRoot.matches(skippedSelector)) {
+      if ((scanRoot.tagName === "INPUT" || scanRoot.tagName === "TEXTAREA") && !shouldSkipAttrs(scanRoot)) {
+        translateElement(scanRoot);
+      }
+      return;
+    }
+    translateSkillCards(scanRoot);
+    if (scanRoot.nodeType === Node.ELEMENT_NODE) translateElement(scanRoot);
+    const textWalker = document.createTreeWalker(
+      scanRoot,
+      NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+      scanFilter
+    );
     let textNode;
-    while ((textNode = textWalker.nextNode())) translateTextNode(textNode);
-    if (root.querySelectorAll) {
-      root.querySelectorAll("[aria-label],[title],[placeholder],[data-tooltip-content]").forEach(translateElement);
+    while ((textNode = textWalker.nextNode())) {
+      translateTextNode(textNode);
     }
   }
 
   let scheduled = false;
   const pendingRoots = new Set();
   function scheduleScan(root) {
-    pendingRoots.add(root && root.nodeType ? root : document);
+    pendingRoots.add(root && root.nodeType ? root : (document.body || document.documentElement));
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      for (const pending of pendingRoots) scan(pending);
+      if (pendingRoots.size === 0) return;
+      if (pendingRoots.size > 200) {
+        pendingRoots.clear();
+        scan(document.body || document.documentElement);
+        return;
+      }
+      const roots = Array.from(pendingRoots);
+      const rootSet = new Set(roots);
       pendingRoots.clear();
+      for (let i = 0; i < roots.length; i++) {
+        const r = roots[i];
+        if (!r || (r !== document && !r.isConnected)) continue;
+        let covered = false;
+        for (let p = r.parentNode; p; p = p.parentNode) {
+          if (rootSet.has(p)) {
+            covered = true;
+            break;
+          }
+        }
+        if (!covered) scan(r);
+      }
     });
   }
 
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
-      if (mutation.type === "characterData") scheduleScan(mutation.target);
-      else if (mutation.type === "attributes") scheduleScan(mutation.target);
-      else for (const node of mutation.addedNodes) scheduleScan(node);
+      if (mutation.type === "characterData") {
+        if (!shouldSkip(mutation.target)) scheduleScan(mutation.target);
+      } else if (mutation.type === "attributes") {
+        if (!shouldSkipAttrs(mutation.target)) translateElement(mutation.target);
+      } else {
+        if (mutation.target && mutation.target.nodeType === Node.ELEMENT_NODE && shouldSkip(mutation.target)) continue;
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE) {
+            scheduleScan(node);
+          }
+        }
+      }
     }
   });
 
-  function restore() {
-    try { observer.disconnect(); } catch (_) {}
-    for (const [node, value] of originalTextNodes) {
-      try { node.nodeValue = value; } catch (_) {}
-    }
-    for (const [element, values] of originalAttributes) {
-      for (const [attribute, value] of values) {
-        try { element.setAttribute(attribute, value); } catch (_) {}
+  function restoreFromWeakMaps(targetRoot) {
+    const root = targetRoot === document ? (document.body || document.documentElement) : targetRoot;
+    if (!root) return;
+    const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let textNode;
+    while ((textNode = textWalker.nextNode())) {
+      const rec = originalTextNodes.get(textNode);
+      if (rec) {
+        if (textNode.nodeValue === rec.last) {
+          try { textNode.nodeValue = rec.orig; } catch (_) {}
+        }
+        originalTextNodes.delete(textNode);
       }
     }
-    originalTextNodes.clear();
-    originalAttributes.clear();
+    if (root.querySelectorAll) {
+      root.querySelectorAll(translatedAttrSelector).forEach((element) => {
+        const values = originalAttributes.get(element);
+        if (!values) return;
+        for (const [attribute, rec] of values) {
+          if (element.getAttribute(attribute) === rec.last) {
+            try { element.setAttribute(attribute, rec.orig); } catch (_) {}
+          }
+        }
+        originalAttributes.delete(element);
+      });
+    }
+  }
+
+  function restore() {
+    try { observer.disconnect(); } catch (_) {}
+    restoreFromWeakMaps(document);
     restoreLegacy(document);
     try { localStorage.setItem(DISABLED_KEY, "1"); } catch (_) {}
     delete window.__antigravityZhAssistant;
     return { ok: true, version: VERSION, restored: true };
   }
 
-  if (previousAssistant) restoreLegacy(document);
+  if (previousAssistant) {
+    restoreFromWeakMaps(document);
+    restoreLegacy(document);
+  }
   delete window.__antigravityZhAssistant;
   let isDisabled = false;
   try {
     isDisabled = localStorage.getItem(DISABLED_KEY) === "1";
   } catch (_) {}
   if (isDisabled) {
+    restoreFromWeakMaps(document);
     restoreLegacy(document);
     return { ok: true, version: VERSION, disabled: true };
   }

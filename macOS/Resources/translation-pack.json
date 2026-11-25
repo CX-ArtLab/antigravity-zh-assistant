@@ -999,6 +999,8 @@
   "Microphone problem": "麦克风异常",
   "Microphone silent": "麦克风无声音",
   "Minimize": "最小化",
+  "Model cannot be changed while the agent is running": "智能体运行期间无法切换模型",
+  "Model cannot be changed while the agent is running.": "智能体运行期间无法切换模型。",
   "Model Credits": "模型点数",
   "Model Quota": "模型配额",
   "Model quota exhausted": "模型配额已耗尽",

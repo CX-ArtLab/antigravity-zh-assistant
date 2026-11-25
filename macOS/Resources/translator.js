@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.38";
+  const VERSION = "0.6.39";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -691,6 +691,24 @@
   });
 
   const DICT = Object.assign(Object.create(null), extraDictionary, dictionary);
+  const DICT_LOWER = Object.create(null);
+  for (const key of Object.keys(DICT)) {
+    if (key.includes(" ")) {
+      const low = key.replace(/…/g, "...").toLowerCase();
+      if (DICT_LOWER[low] === undefined) DICT_LOWER[low] = DICT[key];
+    }
+  }
+
+  function lookupDict(trimmed) {
+    if (typeof DICT[trimmed] === "string") return DICT[trimmed];
+    const norm = trimmed.includes("…") ? trimmed.replace(/…/g, "...") : trimmed;
+    if (norm !== trimmed && typeof DICT[norm] === "string") return DICT[norm];
+    if (trimmed.includes(" ") && /^[A-Z+]/.test(trimmed)) {
+      const lowVal = DICT_LOWER[norm.toLowerCase()];
+      if (typeof lowVal === "string") return lowVal;
+    }
+    return null;
+  }
 
   const skippedSelectorList = [
     "textarea",
@@ -1051,8 +1069,9 @@
       if (/\s$/.test(value)) return value.replace(trimmed, "输入");
       return value.replace(trimmed, DICT[trimmed] || "类型");
     }
-    if (typeof DICT[trimmed] === "string") {
-      const resolved = resolveContextualTranslation(trimmed, contextEl, DICT[trimmed]);
+    const baseDict = lookupDict(trimmed);
+    if (typeof baseDict === "string") {
+      const resolved = resolveContextualTranslation(trimmed, contextEl, baseDict);
       return value.replace(trimmed, () => resolved);
     }
     let approvalMatch = trimmed.match(/^Thought for (\d+)s$/);
@@ -1623,7 +1642,7 @@
       if (/^(?:git|npm|npx|pnpm|yarn|cargo|python|pip|powershell|bash|sh|cmd|curl|wget|dir|ls|cat)\s+/i.test(text)) continue;
       if (Object.prototype.hasOwnProperty.call(skillSummaries, text)) continue;
       if (["Antigravity", "Alt", "Ctrl", "Shift", "Tab", "Google AI Pro", "Google Chrome", "Google3", "notebooks", "visualization", "Previewing Local Project", "Running Application Locally", "Setting Language to Chinese"].includes(text)) continue;
-      if (typeof DICT[text] === "string") continue;
+      if (typeof lookupDict(text) === "string") continue;
       if (translateExact(text, node.parentElement)) continue;
       values.add(text);
     }

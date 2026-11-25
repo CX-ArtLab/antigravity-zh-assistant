@@ -1,6 +1,6 @@
 {
-  "version": "2026.11.23.1",
-  "adaptedAntigravityVersion": "2.34.0",
+  "version": "2026.11.25.1",
+  "adaptedAntigravityVersion": "2.35.1",
   "requiresAppUpdate": true,
   "packUrl": "https://raw.githubusercontent.com/CX-ARTLab/antigravity-zh-assistant/main/translation/translation-pack.json",
   "minimumAssistantVersion": "0.6.7"

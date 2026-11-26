@@ -4,7 +4,7 @@ import Foundation
 import Darwin
 
 private let appName = "Antigravity 中文助手"
-private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.39"
+private let appVersion = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "0.6.40"
 private let manifestURL = URL(string: "https://raw.githubusercontent.com/CX-ARTLab/antigravity-zh-assistant/main/translation/manifest.json")!
 
 private func assistantIconImage() -> NSImage {
@@ -160,8 +160,11 @@ private final class AppModel: ObservableObject {
     @Published var autoUpdate: Bool
     @Published var launchAtLogin: Bool
     @Published var seamlessLaunch: Bool
+    @Published var silentMode: Bool
     @Published var antigravityVersion = "未检测"
     @Published var unknownCount = 0
+
+    var onSilentModeChanged: ((Bool) -> Void)?
 
     private var translationPack: [String: String] = [:]
     private var unknownStrings = Set<String>()
@@ -178,6 +181,7 @@ private final class AppModel: ObservableObject {
         autoUpdate = UserDefaults.standard.object(forKey: "AutoUpdate") as? Bool ?? true
         launchAtLogin = LaunchAtLogin.isEnabled
         seamlessLaunch = UserDefaults.standard.bool(forKey: "SeamlessLaunch")
+        silentMode = UserDefaults.standard.bool(forKey: "SilentMode")
         translationPack = Self.loadTranslationPack()
         antigravityVersion = detectAntigravityVersion()
         monitorTask = Task { [weak self] in
@@ -338,6 +342,15 @@ private final class AppModel: ObservableObject {
     func setSeamlessLaunch(_ value: Bool) {
         seamlessLaunch = value
         UserDefaults.standard.set(value, forKey: "SeamlessLaunch")
+    }
+
+    func setSilentMode(_ value: Bool) {
+        silentMode = value
+        UserDefaults.standard.set(value, forKey: "SilentMode")
+        detail = value
+            ? "已开启静默运行：关闭窗口后隐藏 Dock 图标并在后台运行，重新打开程序或点击顶部菜单栏图标可再次显示窗口。"
+            : "已关闭静默运行：已恢复程序坞（Dock）图标与常规窗口模式。"
+        onSilentModeChanged?(value)
     }
 
     private func tryColdStartRelayIfNeeded() async -> Bool {
@@ -595,6 +608,8 @@ private enum LaunchAtLogin {
 }
 
 private struct WindowConfigurator: NSViewRepresentable {
+    let onWindowReady: (NSWindow) -> Void
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         DispatchQueue.main.async { configure(view.window) }
@@ -608,23 +623,26 @@ private struct WindowConfigurator: NSViewRepresentable {
     private func configure(_ window: NSWindow?) {
         guard let window else { return }
         let size = NSSize(width: 500, height: 550)
-        guard window.contentView?.frame.size != size || window.styleMask.contains(.resizable) else { return }
-        window.setContentSize(size)
-        window.minSize = size
-        window.maxSize = size
-        window.styleMask.remove(.resizable)
-        window.center()
+        if window.contentView?.frame.size != size || window.styleMask.contains(.resizable) {
+            window.setContentSize(size)
+            window.minSize = size
+            window.maxSize = size
+            window.styleMask.remove(.resizable)
+            window.center()
+        }
+        onWindowReady(window)
     }
 }
 
 private struct ContentView: View {
     @ObservedObject var model: AppModel
+    let onWindowReady: (NSWindow) -> Void
 
     var body: some View {
         ZStack {
             Color(red: 0.93, green: 0.94, blue: 0.96).ignoresSafeArea()
             VStack(spacing: 0) {
-                Spacer().frame(height: 90)
+                Spacer().frame(height: 76)
                 ZStack {
                     Circle()
                         .fill(RadialGradient(colors: [Color.cyan.opacity(0.25), .clear], center: .center, startRadius: 0, endRadius: 72))
@@ -667,22 +685,32 @@ private struct ContentView: View {
                     .tint(Color(red: 0.52, green: 0.18, blue: 0.93))
                     .padding(.horizontal, 28)
                     .padding(.top, 18)
-                    HStack(spacing: 16) {
-                        Toggle("自动更新", isOn: Binding(get: { model.autoUpdate }, set: model.setAutoUpdate))
-                        Toggle("开机启动", isOn: Binding(get: { model.launchAtLogin }, set: model.setLaunchAtLogin))
-                        Toggle("无感启动", isOn: Binding(get: { model.seamlessLaunch }, set: model.setSeamlessLaunch))
-                            .help("冷启动官方 Antigravity 时自动接力开启调试接口并汉化，不中断已运行超过 12 秒的会话。")
+                    VStack(spacing: 10) {
+                        HStack(spacing: 20) {
+                            Toggle("自动更新", isOn: Binding(get: { model.autoUpdate }, set: model.setAutoUpdate))
+                                .frame(width: 96, alignment: .leading)
+                            Toggle("开机启动", isOn: Binding(get: { model.launchAtLogin }, set: model.setLaunchAtLogin))
+                                .frame(width: 96, alignment: .leading)
+                        }
+                        HStack(spacing: 20) {
+                            Toggle("无感启动", isOn: Binding(get: { model.seamlessLaunch }, set: model.setSeamlessLaunch))
+                                .frame(width: 96, alignment: .leading)
+                                .help("冷启动官方 Antigravity 时自动接力开启调试接口并汉化，不中断已运行超过 12 秒的会话。")
+                            Toggle("静默运行", isOn: Binding(get: { model.silentMode }, set: model.setSilentMode))
+                                .frame(width: 96, alignment: .leading)
+                                .help("开启后隐藏程序坞（Dock）图标，启动或关闭窗口时转为后台静默运行（仅保留顶部菜单栏图标）。想再次显示窗口，重新打开本程序或点击顶部菜单栏图标即可。")
+                        }
                     }
                     .toggleStyle(.checkbox)
                     .font(.system(size: 14))
                     .foregroundColor(Color(red: 0.30, green: 0.31, blue: 0.42))
-                    .padding(.top, 18)
+                    .padding(.top, 16)
                 }
-                .frame(width: 344, height: 168)
+                .frame(width: 344, height: 194)
                 .background(Color(red: 0.925, green: 0.937, blue: 0.949))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.gray.opacity(0.24)))
-                .padding(.top, 48)
+                .padding(.top, 36)
                 Text("Antigravity \(model.antigravityVersion)  ·  待适配 \(model.unknownCount)")
                     .font(.system(size: 14))
                     .foregroundColor(Color(red: 0.40, green: 0.42, blue: 0.52))
@@ -697,19 +725,108 @@ private struct ContentView: View {
                     Text(model.detail)
                         .font(.system(size: 11))
                         .foregroundColor(Color(red: 0.40, green: 0.42, blue: 0.52))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
                         .padding(.top, 8)
                 }
                 Spacer()
             }
         }
         .frame(width: 500, height: 550)
-        .background(WindowConfigurator())
+        .background(WindowConfigurator(onWindowReady: onWindowReady))
     }
 }
 
 @MainActor
-private final class AssistantAppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
+private final class AssistantAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, ObservableObject {
     let model = AppModel()
+    private weak var mainWindow: NSWindow?
+    private var statusItem: NSStatusItem?
+    private var didHideInitialWindow = false
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        model.onSilentModeChanged = { [weak self] enabled in
+            self?.applySilentMode(enabled)
+        }
+        applySilentMode(model.silentMode)
+    }
+
+    func attachWindow(_ window: NSWindow) {
+        mainWindow = window
+        window.delegate = self
+        if model.silentMode && !didHideInitialWindow {
+            didHideInitialWindow = true
+            window.orderOut(nil)
+            NSApp.setActivationPolicy(.accessory)
+        }
+    }
+
+    private func applySilentMode(_ enabled: Bool) {
+        NSApp.setActivationPolicy(enabled ? .accessory : .regular)
+        if enabled {
+            if statusItem == nil {
+                let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+                if let button = item.button {
+                    let icon = (assistantIconImage().copy() as? NSImage) ?? assistantIconImage()
+                    icon.size = NSSize(width: 18, height: 18)
+                    button.image = icon
+                    button.toolTip = appName
+                }
+                let menu = NSMenu()
+                let openItem = NSMenuItem(title: "打开主窗口", action: #selector(showMainWindow), keyEquivalent: "")
+                openItem.target = self
+                menu.addItem(openItem)
+
+                let toggleItem = NSMenuItem(title: "切换汉化 / 恢复英文", action: #selector(toggleLocalizationFromMenu), keyEquivalent: "")
+                toggleItem.target = self
+                menu.addItem(toggleItem)
+
+                menu.addItem(NSMenuItem.separator())
+
+                let quitItem = NSMenuItem(title: "退出助手", action: #selector(quitFromMenu), keyEquivalent: "q")
+                quitItem.target = self
+                menu.addItem(quitItem)
+
+                item.menu = menu
+                statusItem = item
+            }
+        } else if let existing = statusItem {
+            NSStatusBar.system.removeStatusItem(existing)
+            statusItem = nil
+        }
+    }
+
+    @objc func showMainWindow() {
+        guard let window = mainWindow ?? NSApp.windows.first else { return }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func toggleLocalizationFromMenu() {
+        Task { await model.toggleLocalization() }
+    }
+
+    @objc private func quitFromMenu() {
+        NSApp.terminate(nil)
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.silentMode {
+            sender.orderOut(nil)
+            NSApp.setActivationPolicy(.accessory)
+            return false
+        }
+        return true
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showMainWindow()
+        return true
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        !model.silentMode
+    }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard model.managesAntigravity else { return .terminateNow }
@@ -728,7 +845,11 @@ struct AntigravityZhAssistantMacApp: App {
     @NSApplicationDelegateAdaptor(AssistantAppDelegate.self) private var delegate
 
     var body: some Scene {
-        WindowGroup { ContentView(model: delegate.model) }
+        WindowGroup {
+            ContentView(model: delegate.model, onWindowReady: { window in
+                delegate.attachWindow(window)
+            })
+        }
         .windowStyle(.hiddenTitleBar)
     }
 }

@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.41";
+  const VERSION = "0.6.42";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1580,6 +1580,10 @@
     greetingMatch = trimmed.match(/^Good to see you,\s*(.+?)[.!]$/i);
     if (greetingMatch) {
       return value.replace(trimmed, () => `很高兴见到你，${greetingMatch[1]}。`);
+    }
+    let seeMoreMatch = trimmed.match(/^(\+\s*)?See\s+(\d+)\s+more$/i);
+    if (seeMoreMatch) {
+      return value.replace(trimmed, () => `${seeMoreMatch[1] ? "+ " : ""}查看其余 ${seeMoreMatch[2]} 项`);
     }
     if (AUTO_ADAPT) {
       const composed = translateComposed(trimmed);

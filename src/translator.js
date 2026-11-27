@@ -1,5 +1,5 @@
 (() => {
-  const VERSION = "0.6.40";
+  const VERSION = "0.6.41";
   const DISABLED_KEY = "__antigravityZhAssistantDisabled";
   const AUTO_ADAPT = __AUTO_ADAPT__;
   const extraDictionary = Object.freeze(__EXTRA_TRANSLATIONS__);
@@ -1558,6 +1558,28 @@
     let namedLimResetsMatch = trimmed.match(/^(Weekly|Daily|Monthly)\s+limit,\s*resets in\s+(.+)$/i);
     if (namedLimResetsMatch) {
       return value.replace(trimmed, () => `${translateLimitName(namedLimResetsMatch[1])}额度，将在 ${translateDuration(namedLimResetsMatch[2])}后重置`);
+    }
+    let greetingMatch = trimmed.match(/^Good to see you,\s*(.+?)\.\s*What's next\?$/i);
+    if (greetingMatch) {
+      return value.replace(trimmed, () => `很高兴见到你，${greetingMatch[1]}。接下来做什么？`);
+    }
+    greetingMatch = trimmed.match(/^Good (morning|afternoon|evening),\s*(.+?)\.\s*What's next\?$/i);
+    if (greetingMatch) {
+      const periodMap = { morning: "早上好", afternoon: "下午好", evening: "晚上好" };
+      const periodZh = periodMap[greetingMatch[1].toLowerCase()] || greetingMatch[1];
+      return value.replace(trimmed, () => `${periodZh}，${greetingMatch[2]}。接下来做什么？`);
+    }
+    greetingMatch = trimmed.match(/^Welcome back,\s*(.+?)\.\s*What's next\?$/i);
+    if (greetingMatch) {
+      return value.replace(trimmed, () => `欢迎回来，${greetingMatch[1]}。接下来做什么？`);
+    }
+    greetingMatch = trimmed.match(/^(?:Hello|Hi),\s*(.+?)\.\s*What's next\?$/i);
+    if (greetingMatch) {
+      return value.replace(trimmed, () => `你好，${greetingMatch[1]}。接下来做什么？`);
+    }
+    greetingMatch = trimmed.match(/^Good to see you,\s*(.+?)[.!]$/i);
+    if (greetingMatch) {
+      return value.replace(trimmed, () => `很高兴见到你，${greetingMatch[1]}。`);
     }
     if (AUTO_ADAPT) {
       const composed = translateComposed(trimmed);
